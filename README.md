@@ -1,112 +1,141 @@
-# OpenAI Chatbot with RAG (Retrieval-Augmented Generation): Retrieve Information from CV
+# HiringHelp Chatbot: AI-Powered Hiring Assistant
 
 ## Overview
-This project is an OpenAI-powered chatbot that uses Retrieval-Augmented Generation (RAG) to enhance responses with relevant information from provided documents. The chatbot is deployed using Docker and Kubernetes, and it's designed to be accessed via a web interface.
+HiringHelp Chatbot is an intelligent hiring assistant that helps match candidates with job positions using advanced language models and document retrieval techniques. The chatbot analyzes candidate resumes and provides insights based on your company's requirements.
 
 ## Features
-- Natural Language Processing: Utilizes OpenAI's GPT-3.5 model to generate responses.
-- Document Retrieval: Enhances responses by retrieving relevant information from a set of documents stored in the `knowledge_sources` folder.
-- Web Interface: Provides a simple web interface for user interaction.
-- Dockerized Deployment: Containerized using Docker for easy deployment.
-- Kubernetes: Supports deployment on Kubernetes for scalable and reliable service.
+- **Resume Analysis**: Processes and analyzes candidate resumes in PDF format
+- **Intelligent Matching**: Uses advanced language models to match candidates with job requirements
+- **Interactive Chat Interface**: User-friendly web interface for natural conversations
+- **Rate-Limited API**: Implements rate limiting (10 requests/minute, 100 requests/day) for stable service
+- **Document Management**: Stores and retrieves candidate information from the `knowledge_sources` directory
+- **Vector Search**: Uses FAISS for efficient similarity search in candidate documents
+- **Secure Environment**: Handles sensitive information through environment variables
+
+## Tech Stack
+- **Backend**: Flask (Python)
+- **Language Model**: OpenRouter API (supports multiple models)
+- **Vector Database**: FAISS for efficient document retrieval
+- **Document Processing**: PyPDF2 for PDF parsing
+- **Rate Limiting**: Flask-Limiter for API protection
+- **Data Storage**: SQLite for persistent storage
+- **Containerization**: Docker for deployment
 
 ## Requirements
-- Python 3.9+
-- Flask==2.0.3
-- Werkzeug==2.0.3
-- openai==1.38.0
-- sqlalchemy==1.4.25
-- python-dotenv==1.0.1
-- PyPDF2==3.0.1
-- pandas==2.2.0
-- scikit-learn==1.5.0
-- Docker
-- Kubernetes
-
-## Docker Desktop Setup
-
-1. Install Docker Desktop:
-   - Download Docker Desktop from https://www.docker.com/products/docker-desktop
-   - Install and start Docker Desktop
-   - Wait for Docker Desktop to finish starting (you'll see the whale icon in your system tray)
-
-2. Verify Docker Installation:
-```bash
-# Check Docker version
-docker --version
-
-# Check Docker Compose version
-docker-compose --version
 ```
-
-3. Start Docker Desktop:
-   - Open Docker Desktop application
-   - Wait for it to fully start (the whale icon should stop animating)
-   - You can verify it's running by opening a terminal and running:
-```bash
-docker ps
+Flask==2.0.3
+Werkzeug==2.0.3
+openai>=1.0.0
+sqlalchemy==1.4.25
+python-dotenv==1.0.1
+PyPDF2==3.0.1
+pandas==2.2.0
+scikit-learn==1.5.0
+langchain-core>=0.1.17
+langchain-community>=0.0.13
+langchain>=0.1.0
+tiktoken
+langchain-openai
+faiss-cpu==1.7.4
+Flask-Limiter>=3.5.0
+requests>=2.32.3
+aiohttp==3.9.1
 ```
 
 ## Local Development Setup
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/natgluons/RAG-Chatbot.git
-cd RAG-Chatbot
+git clone https://github.com/natgluons/HiringHelp-Chatbot.git
+cd HiringHelp-Chatbot
 ```
 
 2. Set up environment variables:
-Create a `.env` file in the root directory with your OpenAI API key:
+Create a `.env` file in the root directory:
 ```
-OPENAI_API_KEY=your_api_key_here
+OPENROUTER_API_KEY=your_api_key_here
 ```
 
-3. Set up knowledge sources:
-Create a `knowledge_sources` folder in the root directory and add your documents (PDF, TXT, etc.) that you want the chatbot to use for answering questions.
+3. Add candidate resumes:
+Place PDF resumes in the `knowledge_sources` directory.
 
-4. Database Setup:
-The project uses SQLite as its database. The database file (`database.db`) will be automatically created when you first run the application. No additional setup is required.
-
-5. Run the application using Docker:
+4. Run with Docker:
 ```bash
-# Build and start the containers
+# Build and start the container
 docker-compose up --build
 
-# The web interface will be available at http://localhost:5000
+# Access the web interface at http://localhost:5000
 ```
 
-To stop the application:
+## Docker Commands
 ```bash
+# Start the application
+docker-compose up -d
+
+# Stop the application
 docker-compose down
-```
 
-To restart the application:
-```bash
-# Restart without rebuilding
-docker-compose restart
+# View logs
+docker-compose logs -f
 
-# Restart with rebuilding (if you made changes to requirements.txt or code)
+# Rebuild and restart
 docker-compose up --build -d
 ```
 
-To view logs after restart:
-```bash
-docker-compose logs -f
+## Project Structure
+```
+HiringHelp-Chatbot/
+├── api/                    # Main application code
+│   ├── index.py           # Flask application and API endpoints
+│   └── __init__.py
+├── knowledge_sources/      # Directory for candidate resumes
+├── lib/                    # Helper libraries
+├── public/                 # Static files
+├── database/              # Database related files
+├── docker-compose.yml     # Docker compose configuration
+├── Dockerfile             # Docker build instructions
+├── requirements.txt       # Python dependencies
+└── .env                   # Environment variables
 ```
 
-## Project Structure
-- `knowledge_sources/`: Place your documents here (PDF, TXT, etc.)
-- `backend/`: Contains the Flask application and RAG implementation
-- `database/`: Contains database-related files
-- `database.db`: SQLite database file (created automatically)
-- `index.html`: Frontend interface
-- `styles.css`: Frontend styling
+## Deployment on Hugging Face Spaces
 
-## Docker Deployment
+1. Create a new Space on Hugging Face:
+   - Go to huggingface.co/spaces
+   - Click "Create new Space"
+   - Choose "Docker" as the SDK
+   - Set the visibility as needed
 
-## Access the Web Interface
-Open your browser and navigate to `http://34.71.245.123/` to interact with the chatbot. Ask anything related to my CV, background, professional, and academic experience. This is the minimum viable product (MVP) under development; the final version will be hosted on a domain website, to be announced later.
+2. Configure the Space:
+   - Add your `OPENROUTER_API_KEY` to the Space's secrets
+   - Link your GitHub repository
+   - Enable Docker build
 
-*this service is currently offline due to cost considerations (Why does Kubernetes cost so much!?)
+3. The Space will automatically build and deploy your Docker container.
 
-![ragchatbot](https://github.com/user-attachments/assets/4570bf02-735f-4f92-94f8-b803e6859997)
+## Usage Examples
+```
+"List all the available candidates"
+"Tell me about a candidate named [Name]"
+"Which candidate is best for an AI Engineer role?"
+```
+
+## Rate Limits
+- 10 requests per minute
+- 100 requests per day
+
+## Demo
+A demo version is available with sample candidate data for testing purposes.
+
+## Security Note
+This application handles sensitive information. Always:
+- Keep API keys secure
+- Use environment variables for secrets
+- Review candidate information handling policies
+- Monitor rate limits and usage
+
+## License
+[Add your license information here]
+
+## Contact
+[Add your contact information here]
