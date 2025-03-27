@@ -1,0 +1,51 @@
+name: Deploy to Hugging Face Spaces
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      # Install Hugging Face CLI
+      - name: Install Hugging Face CLI
+        run: pip install --upgrade huggingface_hub
+      
+      # Configure Hugging Face credentials
+      - name: Configure Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: huggingface-cli login --token $HF_TOKEN
+      
+      # Build and push Docker image
+      - name: Build and push Docker image
+        env:
+          HF_USERNAME: ${{ secrets.HF_USERNAME }}
+          SPACE_NAME: ${{ secrets.SPACE_NAME }}
+        run: |
+          # Build the Docker image
+          docker build -t hf-space .
+          
+          # Tag the image for Hugging Face registry
+          docker tag hf-space registry.huggingface.co/$HF_USERNAME/$SPACE_NAME:latest
+          
+          # Login to Hugging Face Container Registry
+          echo ${{ secrets.HF_TOKEN }} | docker login registry.huggingface.co -u $HF_USERNAME --password-stdin
+          
+          # Push the image
+          docker push registry.huggingface.co/$HF_USERNAME/$SPACE_NAME:latest
+      
+      # Upload knowledge sources (if needed)
+      - name: Upload knowledge sources
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_USERNAME: ${{ secrets.HF_USERNAME }}
+          SPACE_NAME: ${{ secrets.SPACE_NAME }}
+        run: |
+          if [ -d "knowledge_sources" ]; then
+            huggingface-cli upload-file spaces/$HF_USERNAME/$SPACE_NAME knowledge_sources/* /knowledge_sources/
+          fi 
