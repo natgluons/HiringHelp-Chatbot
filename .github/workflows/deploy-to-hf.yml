@@ -21,6 +21,12 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: huggingface-cli login --token $HF_TOKEN
       
+      # Debug DNS and connectivity
+      - name: Debug connection
+        run: |
+          ping -c 4 huggingface.co
+          curl -v https://huggingface.co
+      
       # Build and push Docker image
       - name: Build and push Docker image
         env:
@@ -32,11 +38,11 @@ jobs:
           docker build -t hf-space .
           
           # Login to Hugging Face Container Registry
-          echo $HF_TOKEN | docker login -u $HF_USERNAME --password-stdin https://registry.huggingface.co
+          echo $HF_TOKEN | docker login huggingface.co -u $HF_USERNAME --password-stdin
           
           # Tag and push the image
-          docker tag hf-space registry.huggingface.co/spaces/$HF_USERNAME/$SPACE_NAME
-          docker push registry.huggingface.co/spaces/$HF_USERNAME/$SPACE_NAME
+          docker tag hf-space huggingface.co/spaces/$HF_USERNAME/$SPACE_NAME:latest
+          docker push huggingface.co/spaces/$HF_USERNAME/$SPACE_NAME:latest
       
       # Upload knowledge sources (if needed)
       - name: Upload knowledge sources
