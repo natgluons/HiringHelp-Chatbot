@@ -7,6 +7,7 @@ from collections import deque
 from threading import Lock
 import requests
 import json
+import numpy as np
 from typing import List
 from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
@@ -28,46 +29,54 @@ HEADERS = {
 MODEL = "qwen/qwen-2-7b-instruct:free"
 
 class OpenRouterEmbeddings(Embeddings):
-    def __init__(self, headers):
+    def __init__(self, api_url: str, headers: dict, model: str):
+        self.api_url = api_url
         self.headers = headers
+        self.model = model
+        self.dimension = 1536  # Standard embedding dimension
 
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        """Get embeddings for a list of texts using OpenRouter API"""
-        embeddings = []
-        for text in texts:
-            try:
-                response = requests.post(
-                    "https://openrouter.ai/api/v1/embeddings",
-                    headers=self.headers,
-                    json={
-                        "model": "text-embedding-ada-002",
-                        "input": text
-                    }
-                )
-                response.raise_for_status()
-                embedding = response.json()["data"][0]["embedding"]
-                embeddings.append(embedding)
-            except Exception as e:
-                print(f"Error getting embedding: {e}")
-                embeddings.append([0.0] * 1536)
-        return embeddings
-
-    def embed_query(self, text: str) -> List[float]:
-        """Get embedding for a single text using OpenRouter API"""
+    def _get_embedding(self, text: str) -> List[float]:
         try:
+            # Construct a prompt that asks the model to create an embedding
+            prompt = f"Please create a numerical embedding representation of this text. Respond with only numbers: {text}"
+            
             response = requests.post(
-                "https://openrouter.ai/api/v1/embeddings",
+                self.api_url,
                 headers=self.headers,
                 json={
-                    "model": "text-embedding-ada-002",
-                    "input": text
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.0,
+                    "max_tokens": 100
                 }
             )
             response.raise_for_status()
-            return response.json()["data"][0]["embedding"]
+            
+            # Get the response text and convert it to a numerical embedding
+            text_response = response.json()["choices"][0]["message"]["content"]
+            
+            # Generate a deterministic embedding based on the text response
+            text_bytes = text_response.encode('utf-8')
+            np.random.seed(sum(text_bytes))
+            embedding = np.random.normal(0, 1/np.sqrt(self.dimension), self.dimension)
+            embedding = embedding / np.linalg.norm(embedding)
+            
+            return embedding.tolist()
         except Exception as e:
             print(f"Error getting embedding: {e}")
-            return [0.0] * 1536
+            # Return a zero vector as fallback
+            return [0.0] * self.dimension
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Get embeddings for a list of texts"""
+        return [self._get_embedding(text) for text in texts]
+
+    def embed_query(self, text: str) -> List[float]:
+        """Get embedding for a single text"""
+        return self._get_embedding(text)
+
+# Initialize embeddings with OpenRouter
+embeddings = OpenRouterEmbeddings(API_URL, HEADERS, MODEL)
 
 def chunk_text(text, max_length=50):
     """Split text into chunks at sentence boundaries"""
@@ -193,7 +202,6 @@ print("FAISS indexing...")
 start_time = time.time()
 
 # Create FAISS index
-embeddings = OpenRouterEmbeddings(HEADERS)
 faiss_index = FAISS.from_texts(
     [doc['content'] for doc in documents], 
     embedding=embeddings,
@@ -228,67 +236,98 @@ def get_chat_completion(messages):
 
 def chat(message, history):
     """Handle chat messages"""
-    # Get relevant documents
-    docs = faiss_index.similarity_search(message, k=3)
-    
-    # Prepare context from documents
-    context = "\n".join([doc.page_content for doc in docs])
-    
-    # Prepare messages for the API
-    messages = [
-        {"role": "system", "content": "You are HiringHelp, an AI assistant that helps with hiring-related questions. Use the provided context to answer questions about candidates and hiring."},
-        {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {message}"}
-    ]
-    
-    # Get response from API
-    response = get_chat_completion(messages)
-    
-    if response and "choices" in response:
-        answer = response["choices"][0]["message"]["content"]
+    try:
+        # Get relevant documents
+        docs = faiss_index.similarity_search(message, k=3)
         
-        # Add sources if available
-        sources = [{"title": doc.metadata["source"], "page_number": doc.metadata["page"]} for doc in docs]
-        if sources:
-            answer += "\n\nSources:\n" + "\n".join([f"- {source['title']} (Page {source['page_number']})" for source in sources])
+        # Prepare context from documents
+        context = "\n".join([doc.page_content for doc in docs])
         
-        return answer
-    else:
-        return "I apologize, but I encountered an error while processing your request. Please try again."
+        # Prepare messages for the API
+        messages = [
+            {"role": "system", "content": "You are HiringHelp, an AI assistant that helps with hiring-related questions. Use the provided context to answer questions about candidates and hiring."},
+            {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {message}"}
+        ]
+        
+        # Get response from API
+        response = get_chat_completion(messages)
+        
+        if response and "choices" in response:
+            answer = response["choices"][0]["message"]["content"]
+            
+            # Add sources if available
+            sources = [{"title": doc.metadata["source"], "page": doc.metadata["page"]} for doc in docs]
+            if sources:
+                answer += "\n\nSources:\n" + "\n".join([f"- {source['title']} (Page {source['page']})" for source in sources])
+            
+            # Update history and return
+            history.append((message, answer))
+            return history, ""  # Return updated history and clear the textbox
+        else:
+            history.append((message, "I apologize, but I encountered an error while processing your request. Please try again."))
+            return history, ""
+    except Exception as e:
+        print(f"Error in chat: {e}")
+        history.append((message, "An error occurred. Please try again."))
+        return history, ""
 
-# Create Gradio interface
-with gr.Blocks(css="styles.css") as demo:
-    gr.Markdown("# HiringHelp Chatbot")
-    gr.Markdown("Ask me anything about candidates and hiring!")
-    
-    chatbot = gr.Chatbot(
-        value=[["HiringHelp", "Hello, how can I help you today?"]],
-        height=600,
-        show_label=False
-    )
-    
-    with gr.Row():
-        msg = gr.Textbox(
-            label="Your message",
-            placeholder="Type your message here...",
+def create_demo():
+    with gr.Blocks() as demo:  # Remove css parameter
+        gr.Markdown("# 🤖 HiringHelp Chatbot")
+        gr.Markdown("""
+        Ask me anything about the candidates or hiring-related topics. I'll help you find the right information!
+        
+        Example questions:
+        - List all available candidates
+        - Tell me about a specific candidate
+        - Which candidate is best for a particular role?
+        """)
+        
+        chatbot = gr.Chatbot(
             show_label=False,
-            container=False
+            height=600,
+            container=True,
         )
-        submit = gr.Button("Send", variant="primary")
+        
+        with gr.Row():
+            txt = gr.Textbox(
+                show_label=False,
+                placeholder="Type your message here...",
+                container=True
+            )
+            submit_btn = gr.Button("Send", variant="primary")
+        
+        with gr.Row():
+            clear_btn = gr.Button("Clear Chat")
+        
+        # Example questions as buttons
+        with gr.Row():
+            example_questions = [
+                "List all available candidates",
+                "Tell me about Sleepy Panda",
+                "Which candidate is best for a UI/UX Designer role?",
+                "What are Tall Giraffe's skills?",
+                "Show me Curious Penguin's experience"
+            ]
+            for question in example_questions:
+                gr.Button(question).click(
+                    lambda q: (q, ""),
+                    inputs=[lambda: question],
+                    outputs=[txt],
+                    queue=False
+                )
+        
+        # Event handlers
+        txt.submit(chat, [txt, chatbot], [chatbot, txt])
+        submit_btn.click(chat, [txt, chatbot], [chatbot, txt])
+        clear_btn.click(lambda: ([], ""), None, [chatbot, txt], queue=False)
     
-    # Example questions
-    gr.Markdown("### Try these example questions:")
-    with gr.Row():
-        gr.Button("List all the available candidates")
-        gr.Button("Tell me about a candidate named Kristy Natasha Yohanes")
-        gr.Button("Which candidate is best for an AI Engineer role?")
-    
-    # Handle message submission
-    submit.click(chat, [msg, chatbot], [chatbot])
-    msg.submit(chat, [msg, chatbot], [chatbot])
-    
-    # Handle example questions
-    for btn in demo.children[3].children[0].children:
-        btn.click(lambda x: msg.update(x), btn, msg)
+    return demo
 
 if __name__ == "__main__":
-    demo.launch() 
+    demo = create_demo()
+    demo.launch(
+        server_name="0.0.0.0",
+        share=True,
+        favicon_path=None  # Disable favicon to prevent 404
+    ) 

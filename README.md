@@ -1,12 +1,8 @@
 ---
 title: HiringHelp-Chatbot
-emoji: 👨‍💼
-colorFrom: blue
-colorTo: indigo
-sdk: gradio
-sdk_version: "5.22.0"
 app_file: app.py
-pinned: false
+sdk: gradio
+sdk_version: 5.22.0
 ---
 
 # HiringHelp Chatbot
