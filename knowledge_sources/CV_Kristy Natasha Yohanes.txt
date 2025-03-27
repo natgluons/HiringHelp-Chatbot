@@ -1,0 +1,57 @@
+Name: Kristy Natasha Yohanes
+Email: kristynatasha011@gmail.com
+Phone: (+62) 878-8658-3513
+Location: Jakarta, Indonesia
+LinkedIn: linkedin.com/in/kristynatasha
+GitHub: github.com/natgluons
+
+Summary:
+AI Engineer with 4+ years of experience developing, deploying, and optimizing machine learning models and scalable data solutions across fintech, telecom, and research sectors. Proven success in fraud detection, retrieval-augmented generation (RAG), and end-to-end ML pipelines—reducing fraud by up to 25% and improving operational efficiency by 18%. Skilled in Google Cloud, advanced ML architectures (RGCN, HGT, VAE), and data visualization to solve complex problems.
+
+Skills:
+Programming & Frameworks: Python, SQL, TensorFlow, PyTorch, Sklearn, LangChain
+Machine Learning: Anomaly Detection (PCA, Isolation Forest, HDBSCAN), Graph Neural Networks, RAG, VAE, Gradient Boosting
+Cloud Platforms: Google Cloud (Vertex AI, BigQuery, Cloud Functions), Apache Kafka
+NLP & Chatbots: LangChain, LLMs, Dialogflow, Vertex AI
+Data Tools: Looker, Tableau, Power BI, PostgreSQL, DBeaver
+Domain Expertise: Fraud Detection, RAG for Chatbots, AML, Telecom Operations
+Soft Skills: Leadership, Cross-functional Collaboration, Agile Methodologies
+
+Experience:
+Dans Multi Pro – Artificial Intelligence Engineer
+Dec 2024 – Present
+Developed Fraud Detection System for DigiPOS Telkomsel using XGBoost, HDBSCAN, and VAE; reduced fraud by 25%
+Built RAG chatbot pipeline (Vertex AI, LangChain, LLMs) improving customer service accuracy by 30%
+Automated chatbot monitoring with real-time dashboards, increasing service efficiency by 18%
+Designed scalable infrastructure integrating S3, Rule Engine DB, and GCP workflows
+LinkAja – Data Analyst (AI/ML, Anti-Fraud)
+Dec 2023 – Dec 2024
+Delivered 4/4 model cycles using RGCN, HGT, and Network Analysis
+Helped reduce fraud by 11.2%, preventing 95% of potential monthly losses
+Optimized SQL queries, cutting BigQuery execution time by 180 seconds on average
+
+Internships & Research:
+FITB Research Grant ITB – Research Associate (AI/ML): Feb 2022 – Nov 2023
+Kalbe Nutritionals – Data Scientist Intern: Sep 2023 – Nov 2023
+Freelance AI Engineer (NLP Developer): Jan 2023 – Aug 2023
+BTPN Syariah – Full-Stack Developer Intern: Oct 2022 – Dec 2022
+Core Initiative Studio – Front-End Developer Intern: Aug 2022 – Oct 2022
+LAPAN – Data Science Researcher: Feb 2022 – Aug 2022
+Garda Caah – GIS Data Analyst Researcher: Apr 2022 – Jun 2022
+
+Projects:
+OpenAI Chatbot with RAG: Document-enhanced chatbot deployed via Docker and Kubernetes with web UI
+Fraud Detection System API: Flask API to generate graph node embeddings and syndicate clustering for Hackathon BI 2024
+YouTube NLP Recommender: Used YouTube API, NLTK, and Kedro to suggest content from watch history
+Mobile Banking API: Secure user registration and profile management using Gin Gonic and JWT auth
+
+Certifications & Achievements:
+1st Place – Best Paper (ACFE CFP 2024): Fraud Syndicates Within Digital Ecosystem (Asia Pacific Fraud Journal, Vol.10 No.1, 2025)
+Semifinalist – AI Hackathon Bank Indonesia 2024: Graph AI for Syndicate Identification
+Bootcamp Certificates: Data Science, Backend Dev (Python Flask) – MySkill
+Training: AML & Data Governance (PPATK), Full-Stack Developer (BTPN Syariah)
+Coursework: CS50 AI (Harvard), Google Cloud ML Engineer Prep, Python for Data Science (IBM), Meta Full Stack, AI on Azure (Microsoft)
+
+Education:
+BSc Earth Science & Technology (Data Science Focus)
+Bandung Institute of Technology, Indonesia | Aug 2019 – Aug 2023

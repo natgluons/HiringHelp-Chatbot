@@ -17,23 +17,21 @@ window.addEventListener('load', () => {
         </div>
     `;
 
-    // Add event listeners after the DOM is loaded
-    document.addEventListener('DOMContentLoaded', () => {
-        const sendButton = document.getElementById('sendButton');
-        const userInput = document.getElementById('userInput');
+    // Get elements directly after initial load
+    const sendButton = document.getElementById('sendButton');
+    const userInput = document.getElementById('userInput');
 
-        if (sendButton) {
-            sendButton.addEventListener('click', sendMessage);
-        }
+    if (sendButton) {
+        sendButton.addEventListener('click', sendMessage);
+    }
 
-        if (userInput) {
-            userInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    sendMessage();
-                }
-            });
-        }
-    });
+    if (userInput) {
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    }
 });
 
 // Function to use selected prompt
