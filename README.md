@@ -1,29 +1,63 @@
 ---
 title: HiringHelp-Chatbot
-emoji: 👨‍💼
-colorFrom: blue
-colorTo: indigo
-sdk: gradio
-sdk_version: "5.22.0"
 app_file: app.py
-pinned: false
+sdk: gradio
+sdk_version: 5.22.0
 ---
 
 
 # HiringHelp Chatbot
 
-[![Open in Spaces](https://huggingface.co/datasets/huggingface/badges/resolve/main/open-in-hf-spaces-sm.svg)](https://huggingface.co/spaces/natgluons/hiringhelp-chatbot)
-
-A Gradio-based chatbot that helps with hiring-related questions by analyzing candidate information and providing intelligent responses.
+A chatbot that helps with hiring-related questions using RAG (Retrieval-Augmented Generation) with Gradio interface.
 
 ## Features
 
-- Interactive chat interface built with Gradio
-- RAG (Retrieval-Augmented Generation) based responses
-- Support for PDF, TXT, and CSV document formats
-- Example questions for easy interaction
-- Source attribution for responses
-- Modern and responsive UI
+- Interactive chat interface using Gradio
+- RAG system for retrieving relevant information from candidate documents
+- Support for multiple document formats (PDF, TXT, CSV)
+- Conversation memory to maintain context
+- Real-time responses using OpenRouter API
+
+## Setup
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Create a `.env` file with your OpenRouter API key:
+   ```
+   OPENROUTER_API_KEY=your_api_key_here
+   ```
+4. Place your candidate documents in the `knowledge_sources` directory
+5. Run the application:
+   ```bash
+   python app.py
+   ```
+
+## Usage
+
+1. Start the application
+2. Ask questions about candidates or hiring-related topics
+3. The chatbot will retrieve relevant information from the documents and provide answers
+
+## Project Structure
+
+- `app.py`: Main application file
+- `requirements.txt`: Python dependencies
+- `knowledge_sources/`: Directory containing candidate documents
+- `.env`: Environment variables (API keys)
+
+## Dependencies
+
+- gradio
+- openai
+- python-dotenv
+- PyPDF2
+- pandas
+- langchain
+- faiss-cpu
+- requests
 
 ## Local Development
 
