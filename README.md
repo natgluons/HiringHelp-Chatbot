@@ -47,13 +47,14 @@ A demo version is available with sample candidate data for testing purposes.
 - 100 requests per day
 
 ## Deployment 
-1. **Hugging Face Spaces**: [Interactive Demo](https://huggingface.co/spaces/natgluons/HiringHelp-Chatbot) - active
+1. **Vercel Deployment**: [Live Demo](https://hiring-help-chatbot.vercel.app/) - inactive API [Preview Only]
+
+<img src="https://github.com/user-attachments/assets/c1a43285-bbec-457a-ab24-ba6cdb0a0bde" width="800px">
+
+2. **Hugging Face Spaces**: [Interactive Demo](https://huggingface.co/spaces/natgluons/HiringHelp-Chatbot) - active
 
 <img src="https://github.com/user-attachments/assets/25a08529-317d-491b-a376-fec7f224c365" width="800px">
 
-2. **Vercel Deployment**: [Live Demo](https://hiring-help-chatbot.vercel.app/) - inactive API [Preview Only]
-
-<img src="https://github.com/user-attachments/assets/c1a43285-bbec-457a-ab24-ba6cdb0a0bde" width="800px">
 
 3. **Local Development**: See below for setup instructions & local-docs branch for complete script.
 
