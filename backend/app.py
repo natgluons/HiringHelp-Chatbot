@@ -30,7 +30,7 @@ HEADERS = {
     "X-Title": "HiringHelp Chatbot",
     "Content-Type": "application/json"
 }
-MODEL = "qwen/qwen-2-7b-instruct:free"
+MODEL = "qwen/qwen2-7b-instruct"
 
 class OpenRouterEmbeddings(Embeddings):
     def __init__(self, headers):
@@ -45,7 +45,7 @@ class OpenRouterEmbeddings(Embeddings):
                     "https://openrouter.ai/api/v1/embeddings",
                     headers=self.headers,
                     json={
-                        "model": "text-embedding-ada-002",
+                        "model": "qwen/qwen2-7b-instruct",
                         "input": text
                     }
                 )
@@ -65,7 +65,1509 @@ class OpenRouterEmbeddings(Embeddings):
                 "https://openrouter.ai/api/v1/embeddings",
                 headers=self.headers,
                 json={
-                    "model": "text-embedding-ada-002",
+                    "model": "qwen/qwen2-7b-instruct",
+                    "input": text
+                }
+            )
+            response.raise_for_status()
+            return response.json()["data"][0]["embedding"]
+        except Exception as e:
+            app.logger.error(f"Error getting embedding: {e}")
+            # Return a zero vector as fallback
+            return [0.0] * 1536
+
+# Rate limiter settings
+MAX_REQUESTS_PER_MINUTE = 10
+MAX_REQUESTS_PER_DAY = 100
+MINUTE_WINDOW = 60  # seconds
+DAY_WINDOW = 24 * 60 * 60  # seconds (24 hours)
+minute_timestamps = deque()
+day_timestamps = deque()
+rate_limit_lock = Lock()
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
+
+app = Flask(__name__, static_folder='../public', static_url_path='/static')
+from flask import Flask, request, jsonify, send_from_directory
+from logging.config import dictConfig
+from models import get_db_connection, init_db
+import os
+import pandas as pd
+from dotenv import load_dotenv
+import time
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from collections import deque
+from threading import Lock
+import requests
+import json
+from typing import List
+
+from langchain_community.vectorstores import FAISS
+from langchain.chains import RetrievalQA
+from langchain.chains.conversation.memory import ConversationBufferMemory
+from langchain.embeddings.base import Embeddings
+from PyPDF2 import PdfReader
+
+# Load environment variables from .env file
+load_dotenv()
+
+# OpenRouter API configuration
+API_URL = "https://openrouter.ai/api/v1/chat/completions"
+HEADERS = {
+    "Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY')}",
+    "HTTP-Referer": "https://github.com/natgluons/RAG-Chatbot",
+    "X-Title": "HiringHelp Chatbot",
+    "Content-Type": "application/json"
+}
+MODEL = "qwen/qwen2-7b-instruct"
+
+class OpenRouterEmbeddings(Embeddings):
+    def __init__(self, headers):
+        self.headers = headers
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Get embeddings for a list of texts using OpenRouter API"""
+        embeddings = []
+        for text in texts:
+            try:
+                response = requests.post(
+                    "https://openrouter.ai/api/v1/embeddings",
+                    headers=self.headers,
+                    json={
+                        "model": "qwen/qwen2-7b-instruct",
+                        "input": text
+                    }
+                )
+                response.raise_for_status()
+                embedding = response.json()["data"][0]["embedding"]
+                embeddings.append(embedding)
+            except Exception as e:
+                app.logger.error(f"Error getting embedding: {e}")
+                # Return a zero vector as fallback
+                embeddings.append([0.0] * 1536)  # OpenAI embeddings are 1536-dimensional
+        return embeddings
+
+    def embed_query(self, text: str) -> List[float]:
+        """Get embedding for a single text using OpenRouter API"""
+        try:
+            response = requests.post(
+                "https://openrouter.ai/api/v1/embeddings",
+                headers=self.headers,
+                json={
+                    "model": "qwen/qwen2-7b-instruct",
+                    "input": text
+                }
+            )
+            response.raise_for_status()
+            return response.json()["data"][0]["embedding"]
+        except Exception as e:
+            app.logger.error(f"Error getting embedding: {e}")
+            # Return a zero vector as fallback
+            return [0.0] * 1536
+
+# Rate limiter settings
+MAX_REQUESTS_PER_MINUTE = 10
+MAX_REQUESTS_PER_DAY = 100
+MINUTE_WINDOW = 60  # seconds
+DAY_WINDOW = 24 * 60 * 60  # seconds (24 hours)
+minute_timestamps = deque()
+day_timestamps = deque()
+rate_limit_lock = Lock()
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
+
+app = Flask(__name__, static_folder='../public', static_url_path='/static')
+from flask import Flask, request, jsonify, send_from_directory
+from logging.config import dictConfig
+from models import get_db_connection, init_db
+import os
+import pandas as pd
+from dotenv import load_dotenv
+import time
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from collections import deque
+from threading import Lock
+import requests
+import json
+from typing import List
+
+from langchain_community.vectorstores import FAISS
+from langchain.chains import RetrievalQA
+from langchain.chains.conversation.memory import ConversationBufferMemory
+from langchain.embeddings.base import Embeddings
+from PyPDF2 import PdfReader
+
+# Load environment variables from .env file
+load_dotenv()
+
+# OpenRouter API configuration
+API_URL = "https://openrouter.ai/api/v1/chat/completions"
+HEADERS = {
+    "Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY')}",
+    "HTTP-Referer": "https://github.com/natgluons/RAG-Chatbot",
+    "X-Title": "HiringHelp Chatbot",
+    "Content-Type": "application/json"
+}
+MODEL = "qwen/qwen2-7b-instruct"
+
+class OpenRouterEmbeddings(Embeddings):
+    def __init__(self, headers):
+        self.headers = headers
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Get embeddings for a list of texts using OpenRouter API"""
+        embeddings = []
+        for text in texts:
+            try:
+                response = requests.post(
+                    "https://openrouter.ai/api/v1/embeddings",
+                    headers=self.headers,
+                    json={
+                        "model": "qwen/qwen2-7b-instruct",
+                        "input": text
+                    }
+                )
+                response.raise_for_status()
+                embedding = response.json()["data"][0]["embedding"]
+                embeddings.append(embedding)
+            except Exception as e:
+                app.logger.error(f"Error getting embedding: {e}")
+                # Return a zero vector as fallback
+                embeddings.append([0.0] * 1536)  # OpenAI embeddings are 1536-dimensional
+        return embeddings
+
+    def embed_query(self, text: str) -> List[float]:
+        """Get embedding for a single text using OpenRouter API"""
+        try:
+            response = requests.post(
+                "https://openrouter.ai/api/v1/embeddings",
+                headers=self.headers,
+                json={
+                    "model": "qwen/qwen2-7b-instruct",
+                    "input": text
+                }
+            )
+            response.raise_for_status()
+            return response.json()["data"][0]["embedding"]
+        except Exception as e:
+            app.logger.error(f"Error getting embedding: {e}")
+            # Return a zero vector as fallback
+            return [0.0] * 1536
+
+# Rate limiter settings
+MAX_REQUESTS_PER_MINUTE = 10
+MAX_REQUESTS_PER_DAY = 100
+MINUTE_WINDOW = 60  # seconds
+DAY_WINDOW = 24 * 60 * 60  # seconds (24 hours)
+minute_timestamps = deque()
+day_timestamps = deque()
+rate_limit_lock = Lock()
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
+
+app = Flask(__name__, static_folder='../public', static_url_path='/static')
+from flask import Flask, request, jsonify, send_from_directory
+from logging.config import dictConfig
+from models import get_db_connection, init_db
+import os
+import pandas as pd
+from dotenv import load_dotenv
+import time
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from collections import deque
+from threading import Lock
+import requests
+import json
+from typing import List
+
+from langchain_community.vectorstores import FAISS
+from langchain.chains import RetrievalQA
+from langchain.chains.conversation.memory import ConversationBufferMemory
+from langchain.embeddings.base import Embeddings
+from PyPDF2 import PdfReader
+
+# Load environment variables from .env file
+load_dotenv()
+
+# OpenRouter API configuration
+API_URL = "https://openrouter.ai/api/v1/chat/completions"
+HEADERS = {
+    "Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY')}",
+    "HTTP-Referer": "https://github.com/natgluons/RAG-Chatbot",
+    "X-Title": "HiringHelp Chatbot",
+    "Content-Type": "application/json"
+}
+MODEL = "qwen/qwen2-7b-instruct"
+
+class OpenRouterEmbeddings(Embeddings):
+    def __init__(self, headers):
+        self.headers = headers
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Get embeddings for a list of texts using OpenRouter API"""
+        embeddings = []
+        for text in texts:
+            try:
+                response = requests.post(
+                    "https://openrouter.ai/api/v1/embeddings",
+                    headers=self.headers,
+                    json={
+                        "model": "qwen/qwen2-7b-instruct",
+                        "input": text
+                    }
+                )
+                response.raise_for_status()
+                embedding = response.json()["data"][0]["embedding"]
+                embeddings.append(embedding)
+            except Exception as e:
+                app.logger.error(f"Error getting embedding: {e}")
+                # Return a zero vector as fallback
+                embeddings.append([0.0] * 1536)  # OpenAI embeddings are 1536-dimensional
+        return embeddings
+
+    def embed_query(self, text: str) -> List[float]:
+        """Get embedding for a single text using OpenRouter API"""
+        try:
+            response = requests.post(
+                "https://openrouter.ai/api/v1/embeddings",
+                headers=self.headers,
+                json={
+                    "model": "qwen/qwen2-7b-instruct",
+                    "input": text
+                }
+            )
+            response.raise_for_status()
+            return response.json()["data"][0]["embedding"]
+        except Exception as e:
+            app.logger.error(f"Error getting embedding: {e}")
+            # Return a zero vector as fallback
+            return [0.0] * 1536
+
+# Rate limiter settings
+MAX_REQUESTS_PER_MINUTE = 10
+MAX_REQUESTS_PER_DAY = 100
+MINUTE_WINDOW = 60  # seconds
+DAY_WINDOW = 24 * 60 * 60  # seconds (24 hours)
+minute_timestamps = deque()
+day_timestamps = deque()
+rate_limit_lock = Lock()
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
+
+app = Flask(__name__, static_folder='..', static_url_path='')
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['DOCS_FOLDER'] = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'knowledge_sources')
+ALLOWED_EXTENSIONS = {'pdf', 'txt', 'csv'}
+
+# Initialize rate limiter
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["10 per minute", "100 per day"]
+)
+
+def get_chat_completion(messages):
+    """Get chat completion using OpenRouter API"""
+    try:
+        response = requests.post(
+            API_URL,
+            headers=HEADERS,
+            json={
+                "model": MODEL,
+                "messages": messages,
+                "max_tokens": 100,
+                "temperature": 0.7
+            }
+        )
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        app.logger.error(f"Error getting chat completion: {e}")
+        return None
+
+init_db()
+
+def chunk_text(text, max_length=50):
+    """Split text into chunks at sentence boundaries, ensuring no sentence is cut off and each chunk ends with a period"""
+    # Split text into sentences (handle common sentence endings)
+    sentences = []
+    current_sentence = []
+    
+    for word in text.split():
+        current_sentence.append(word)
+        
+        # Check if this word ends with a sentence-ending punctuation
+        if word.endswith(('.', '!', '?', '...')):
+            # Join the current sentence and add it to sentences
+            sentences.append(' '.join(current_sentence))
+            current_sentence = []
+    
+    # Add any remaining words as a sentence
+    if current_sentence:
+        sentences.append(' '.join(current_sentence))
+    
+    # Group sentences into chunks
+    chunks = []
+    current_chunk = []
+    current_length = 0
+    
+    for sentence in sentences:
+        sentence_length = len(sentence.split())
+        
+        # If adding this sentence would exceed max_length, start a new chunk
+        if current_length + sentence_length > max_length and current_chunk:
+            # Ensure the chunk ends with a period
+            chunk_text = ' '.join(current_chunk)
+            if not chunk_text.strip().endswith('.'):
+                chunk_text = chunk_text.rstrip('.!?') + '.'
+            chunks.append(chunk_text)
+            current_chunk = []
+            current_length = 0
+        
+        current_chunk.append(sentence)
+        current_length += sentence_length
+    
+    # Add the last chunk if it exists
+    if current_chunk:
+        # Ensure the last chunk ends with a period
+        chunk_text = ' '.join(current_chunk)
+        if not chunk_text.strip().endswith('.'):
+            chunk_text = chunk_text.rstrip('.!?') + '.'
+        chunks.append(chunk_text)
+    
+    return chunks
+
+def load_documents(folder_path):
+    documents = []
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        if filename.endswith(".txt"):
+            with open(file_path, 'r', encoding='utf-8') as file:
+                text_chunks = chunk_text(file.read())
+                for chunk in text_chunks:
+                    documents.append({
+                        "content": chunk,
+                        "metadata": {
+                            "source": filename,
+                            "page": 1
+                        }
+                    })
+        elif filename.endswith(".pdf"):
+            reader = PdfReader(file_path)
+            for page_num, page in enumerate(reader.pages):
+                text = page.extract_text()
+                if text:
+                    text_chunks = chunk_text(text)
+                    for chunk in text_chunks:
+                        documents.append({
+                            "content": chunk,
+                            "metadata": {
+                                "source": filename,
+                                "page": page_num + 1
+                            }
+                        })
+        elif filename.endswith(".csv"):
+            df = pd.read_csv(file_path)
+            text_chunks = chunk_text(df.to_string())
+            for chunk in text_chunks:
+                documents.append({
+                    "content": chunk,
+                    "metadata": {
+                        "source": filename,
+                        "page": 1
+                    }
+                })
+    return documents
+
+folder_path = 'knowledge_sources'
+if not os.path.exists(folder_path):
+    os.makedirs(folder_path)
+    app.logger.warning(f"Created {folder_path} directory as it did not exist")
+
+documents = load_documents(folder_path)
+if not documents:
+    app.logger.warning("No documents found in knowledge_sources directory")
+    documents = [{"content": "No documents available.", "metadata": {"source": "empty", "page": 1}}]
+
+app.logger.info(f"{len(documents)} documents loaded")
+app.logger.info("FAISS indexing...")
+start_time = time.time()
+
+# Create FAISS index using the custom embedding class
+embeddings = OpenRouterEmbeddings(HEADERS)
+faiss_index = FAISS.from_texts(
+    [doc['content'] for doc in documents], 
+    embedding=embeddings,
+    metadatas=[doc['metadata'] for doc in documents]
+)
+app.logger.info(f"FAISS indexing done in {time.time() - start_time} seconds")
+
+retriever = faiss_index.as_retriever(
+    search_type="similarity",
+    search_kwargs={
+        "k": 3,
+        "score_threshold": 0.7
+    }
+)
+
+# Initialize conversation memory
+memory = ConversationBufferMemory(
+    memory_key="chat_history",
+    return_messages=True,
+    output_key="result"
+)
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    print("\n=== Chat Request Started ===")
+    print("Checking OpenRouter API configuration...")
+    print(f"OpenRouter API Key present: {bool(os.environ.get('OPENROUTER_API_KEY'))}")
+    print(f"Using model: {MODEL}")
+    
+    try:
+        data = request.get_json()
+        # Validate required fields
+        if not data or 'prompt' not in data:
+            return jsonify({"error": "Missing required 'prompt' field"}), 400
+            
+        prompt = data['prompt']
+        # Explicitly ignore any extra fields
+        data = {k: v for k, v in data.items() if k == 'prompt'}
+    except Exception as e:
+        return jsonify({"error": f"Invalid request format: {str(e)}"}), 400
+from flask import Flask, request, jsonify, send_from_directory
+from logging.config import dictConfig
+from models import get_db_connection, init_db
+import os
+import pandas as pd
+from dotenv import load_dotenv
+import time
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from collections import deque
+from threading import Lock
+import requests
+import json
+from typing import List
+
+from langchain_community.vectorstores import FAISS
+from langchain.chains import RetrievalQA
+from langchain.chains.conversation.memory import ConversationBufferMemory
+from langchain.embeddings.base import Embeddings
+from PyPDF2 import PdfReader
+
+# Load environment variables from .env file
+load_dotenv()
+
+# OpenRouter API configuration
+API_URL = "https://openrouter.ai/api/v1/chat/completions"
+HEADERS = {
+    "Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY')}",
+    "HTTP-Referer": "https://github.com/natgluons/RAG-Chatbot",
+    "X-Title": "HiringHelp Chatbot",
+    "Content-Type": "application/json"
+}
+MODEL = "qwen/qwen2-7b-instruct"
+
+class OpenRouterEmbeddings(Embeddings):
+    def __init__(self, headers):
+        self.headers = headers
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Get embeddings for a list of texts using OpenRouter API"""
+        embeddings = []
+        for text in texts:
+            try:
+                response = requests.post(
+                    "https://openrouter.ai/api/v1/embeddings",
+                    headers=self.headers,
+                    json={
+                        "model": "qwen/qwen2-7b-instruct",
+                        "input": text
+                    }
+                )
+                response.raise_for_status()
+                embedding = response.json()["data"][0]["embedding"]
+                embeddings.append(embedding)
+            except Exception as e:
+                app.logger.error(f"Error getting embedding: {e}")
+                # Return a zero vector as fallback
+                embeddings.append([0.0] * 1536)  # OpenAI embeddings are 1536-dimensional
+        return embeddings
+
+    def embed_query(self, text: str) -> List[float]:
+        """Get embedding for a single text using OpenRouter API"""
+        try:
+            response = requests.post(
+                "https://openrouter.ai/api/v1/embeddings",
+                headers=self.headers,
+                json={
+                    "model": "qwen/qwen2-7b-instruct",
+                    "input": text
+                }
+            )
+            response.raise_for_status()
+            return response.json()["data"][0]["embedding"]
+        except Exception as e:
+            app.logger.error(f"Error getting embedding: {e}")
+            # Return a zero vector as fallback
+            return [0.0] * 1536
+
+# Rate limiter settings
+MAX_REQUESTS_PER_MINUTE = 10
+MAX_REQUESTS_PER_DAY = 100
+MINUTE_WINDOW = 60  # seconds
+DAY_WINDOW = 24 * 60 * 60  # seconds (24 hours)
+minute_timestamps = deque()
+day_timestamps = deque()
+rate_limit_lock = Lock()
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
+
+app = Flask(__name__, static_folder='../public', static_url_path='/static')
+from flask import Flask, request, jsonify, send_from_directory
+from logging.config import dictConfig
+from models import get_db_connection, init_db
+import os
+import pandas as pd
+from dotenv import load_dotenv
+import time
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from collections import deque
+from threading import Lock
+import requests
+import json
+from typing import List
+
+from langchain_community.vectorstores import FAISS
+from langchain.chains import RetrievalQA
+from langchain.chains.conversation.memory import ConversationBufferMemory
+from langchain.embeddings.base import Embeddings
+from PyPDF2 import PdfReader
+
+# Load environment variables from .env file
+load_dotenv()
+
+# OpenRouter API configuration
+API_URL = "https://openrouter.ai/api/v1/chat/completions"
+HEADERS = {
+    "Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY')}",
+    "HTTP-Referer": "https://github.com/natgluons/RAG-Chatbot",
+    "X-Title": "HiringHelp Chatbot",
+    "Content-Type": "application/json"
+}
+MODEL = "qwen/qwen2-7b-instruct"
+
+class OpenRouterEmbeddings(Embeddings):
+    def __init__(self, headers):
+        self.headers = headers
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Get embeddings for a list of texts using OpenRouter API"""
+        embeddings = []
+        for text in texts:
+            try:
+                response = requests.post(
+                    "https://openrouter.ai/api/v1/embeddings",
+                    headers=self.headers,
+                    json={
+                        "model": "qwen/qwen2-7b-instruct",
+                        "input": text
+                    }
+                )
+                response.raise_for_status()
+                embedding = response.json()["data"][0]["embedding"]
+                embeddings.append(embedding)
+            except Exception as e:
+                app.logger.error(f"Error getting embedding: {e}")
+                # Return a zero vector as fallback
+                embeddings.append([0.0] * 1536)  # OpenAI embeddings are 1536-dimensional
+        return embeddings
+
+    def embed_query(self, text: str) -> List[float]:
+        """Get embedding for a single text using OpenRouter API"""
+        try:
+            response = requests.post(
+                "https://openrouter.ai/api/v1/embeddings",
+                headers=self.headers,
+                json={
+                    "model": "qwen/qwen2-7b-instruct",
+                    "input": text
+                }
+            )
+            response.raise_for_status()
+            return response.json()["data"][0]["embedding"]
+        except Exception as e:
+            app.logger.error(f"Error getting embedding: {e}")
+            # Return a zero vector as fallback
+            return [0.0] * 1536
+
+# Rate limiter settings
+MAX_REQUESTS_PER_MINUTE = 10
+MAX_REQUESTS_PER_DAY = 100
+MINUTE_WINDOW = 60  # seconds
+DAY_WINDOW = 24 * 60 * 60  # seconds (24 hours)
+minute_timestamps = deque()
+day_timestamps = deque()
+rate_limit_lock = Lock()
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
+
+app = Flask(__name__, static_folder='../public', static_url_path='/static')
+from flask import Flask, request, jsonify, send_from_directory
+from logging.config import dictConfig
+from models import get_db_connection, init_db
+import os
+import pandas as pd
+from dotenv import load_dotenv
+import time
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from collections import deque
+from threading import Lock
+import requests
+import json
+from typing import List
+
+from langchain_community.vectorstores import FAISS
+from langchain.chains import RetrievalQA
+from langchain.chains.conversation.memory import ConversationBufferMemory
+from langchain.embeddings.base import Embeddings
+from PyPDF2 import PdfReader
+
+# Load environment variables from .env file
+load_dotenv()
+
+# OpenRouter API configuration
+API_URL = "https://openrouter.ai/api/v1/chat/completions"
+HEADERS = {
+    "Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY')}",
+    "HTTP-Referer": "https://github.com/natgluons/RAG-Chatbot",
+    "X-Title": "HiringHelp Chatbot",
+    "Content-Type": "application/json"
+}
+MODEL = "qwen/qwen2-7b-instruct"
+
+class OpenRouterEmbeddings(Embeddings):
+    def __init__(self, headers):
+        self.headers = headers
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Get embeddings for a list of texts using OpenRouter API"""
+        embeddings = []
+        for text in texts:
+            try:
+                response = requests.post(
+                    "https://openrouter.ai/api/v1/embeddings",
+                    headers=self.headers,
+                    json={
+                        "model": "qwen/qwen2-7b-instruct",
+                        "input": text
+                    }
+                )
+                response.raise_for_status()
+                embedding = response.json()["data"][0]["embedding"]
+                embeddings.append(embedding)
+            except Exception as e:
+                app.logger.error(f"Error getting embedding: {e}")
+                # Return a zero vector as fallback
+                embeddings.append([0.0] * 1536)  # OpenAI embeddings are 1536-dimensional
+        return embeddings
+
+    def embed_query(self, text: str) -> List[float]:
+        """Get embedding for a single text using OpenRouter API"""
+        try:
+            response = requests.post(
+                "https://openrouter.ai/api/v1/embeddings",
+                headers=self.headers,
+                json={
+                    "model": "qwen/qwen2-7b-instruct",
+                    "input": text
+                }
+            )
+            response.raise_for_status()
+            return response.json()["data"][0]["embedding"]
+        except Exception as e:
+            app.logger.error(f"Error getting embedding: {e}")
+            # Return a zero vector as fallback
+            return [0.0] * 1536
+
+# Rate limiter settings
+MAX_REQUESTS_PER_MINUTE = 10
+MAX_REQUESTS_PER_DAY = 100
+MINUTE_WINDOW = 60  # seconds
+DAY_WINDOW = 24 * 60 * 60  # seconds (24 hours)
+minute_timestamps = deque()
+day_timestamps = deque()
+rate_limit_lock = Lock()
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
+
+app = Flask(__name__, static_folder='../public', static_url_path='/static')
+from flask import Flask, request, jsonify, send_from_directory
+from logging.config import dictConfig
+from models import get_db_connection, init_db
+import os
+import pandas as pd
+from dotenv import load_dotenv
+import time
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from collections import deque
+from threading import Lock
+import requests
+import json
+from typing import List
+
+from langchain_community.vectorstores import FAISS
+from langchain.chains import RetrievalQA
+from langchain.chains.conversation.memory import ConversationBufferMemory
+from langchain.embeddings.base import Embeddings
+from PyPDF2 import PdfReader
+
+# Load environment variables from .env file
+load_dotenv()
+
+# OpenRouter API configuration
+API_URL = "https://openrouter.ai/api/v1/chat/completions"
+HEADERS = {
+    "Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY')}",
+    "HTTP-Referer": "https://github.com/natgluons/RAG-Chatbot",
+    "X-Title": "HiringHelp Chatbot",
+    "Content-Type": "application/json"
+}
+MODEL = "qwen/qwen2-7b-instruct"
+
+class OpenRouterEmbeddings(Embeddings):
+    def __init__(self, headers):
+        self.headers = headers
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Get embeddings for a list of texts using OpenRouter API"""
+        embeddings = []
+        for text in texts:
+            try:
+                response = requests.post(
+                    "https://openrouter.ai/api/v1/embeddings",
+                    headers=self.headers,
+                    json={
+                        "model": "qwen/qwen2-7b-instruct",
+                        "input": text
+                    }
+                )
+                response.raise_for_status()
+                embedding = response.json()["data"][0]["embedding"]
+                embeddings.append(embedding)
+            except Exception as e:
+                app.logger.error(f"Error getting embedding: {e}")
+                # Return a zero vector as fallback
+                embeddings.append([0.0] * 1536)  # OpenAI embeddings are 1536-dimensional
+        return embeddings
+
+    def embed_query(self, text: str) -> List[float]:
+        """Get embedding for a single text using OpenRouter API"""
+        try:
+            response = requests.post(
+                "https://openrouter.ai/api/v1/embeddings",
+                headers=self.headers,
+                json={
+                    "model": "qwen/qwen2-7b-instruct",
+                    "input": text
+                }
+            )
+            response.raise_for_status()
+            return response.json()["data"][0]["embedding"]
+        except Exception as e:
+            app.logger.error(f"Error getting embedding: {e}")
+            # Return a zero vector as fallback
+            return [0.0] * 1536
+
+# Rate limiter settings
+MAX_REQUESTS_PER_MINUTE = 10
+MAX_REQUESTS_PER_DAY = 100
+MINUTE_WINDOW = 60  # seconds
+DAY_WINDOW = 24 * 60 * 60  # seconds (24 hours)
+minute_timestamps = deque()
+day_timestamps = deque()
+rate_limit_lock = Lock()
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
+
+app = Flask(__name__, static_folder='..', static_url_path='')
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['DOCS_FOLDER'] = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'knowledge_sources')
+ALLOWED_EXTENSIONS = {'pdf', 'txt', 'csv'}
+
+# Initialize rate limiter
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["10 per minute", "100 per day"]
+)
+
+def get_chat_completion(messages):
+    """Get chat completion using OpenRouter API"""
+    try:
+        response = requests.post(
+            API_URL,
+            headers=HEADERS,
+            json={
+                "model": MODEL,
+                "messages": messages,
+                "max_tokens": 100,
+                "temperature": 0.7
+            }
+        )
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        app.logger.error(f"Error getting chat completion: {e}")
+        return None
+
+init_db()
+
+def chunk_text(text, max_length=50):
+    """Split text into chunks at sentence boundaries, ensuring no sentence is cut off and each chunk ends with a period"""
+    # Split text into sentences (handle common sentence endings)
+    sentences = []
+    current_sentence = []
+    
+    for word in text.split():
+        current_sentence.append(word)
+        
+        # Check if this word ends with a sentence-ending punctuation
+        if word.endswith(('.', '!', '?', '...')):
+            # Join the current sentence and add it to sentences
+            sentences.append(' '.join(current_sentence))
+            current_sentence = []
+    
+    # Add any remaining words as a sentence
+    if current_sentence:
+        sentences.append(' '.join(current_sentence))
+    
+    # Group sentences into chunks
+    chunks = []
+    current_chunk = []
+    current_length = 0
+    
+    for sentence in sentences:
+        sentence_length = len(sentence.split())
+        
+        # If adding this sentence would exceed max_length, start a new chunk
+        if current_length + sentence_length > max_length and current_chunk:
+            # Ensure the chunk ends with a period
+            chunk_text = ' '.join(current_chunk)
+            if not chunk_text.strip().endswith('.'):
+                chunk_text = chunk_text.rstrip('.!?') + '.'
+            chunks.append(chunk_text)
+            current_chunk = []
+            current_length = 0
+        
+        current_chunk.append(sentence)
+        current_length += sentence_length
+    
+    # Add the last chunk if it exists
+    if current_chunk:
+        # Ensure the last chunk ends with a period
+        chunk_text = ' '.join(current_chunk)
+        if not chunk_text.strip().endswith('.'):
+            chunk_text = chunk_text.rstrip('.!?') + '.'
+        chunks.append(chunk_text)
+    
+    return chunks
+
+def load_documents(folder_path):
+    documents = []
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        if filename.endswith(".txt"):
+            with open(file_path, 'r', encoding='utf-8') as file:
+                text_chunks = chunk_text(file.read())
+                for chunk in text_chunks:
+                    documents.append({
+                        "content": chunk,
+                        "metadata": {
+                            "source": filename,
+                            "page": 1
+                        }
+                    })
+        elif filename.endswith(".pdf"):
+            reader = PdfReader(file_path)
+            for page_num, page in enumerate(reader.pages):
+                text = page.extract_text()
+                if text:
+                    text_chunks = chunk_text(text)
+                    for chunk in text_chunks:
+                        documents.append({
+                            "content": chunk,
+                            "metadata": {
+                                "source": filename,
+                                "page": page_num + 1
+                            }
+                        })
+        elif filename.endswith(".csv"):
+            df = pd.read_csv(file_path)
+            text_chunks = chunk_text(df.to_string())
+            for chunk in text_chunks:
+                documents.append({
+                    "content": chunk,
+                    "metadata": {
+                        "source": filename,
+                        "page": 1
+                    }
+                })
+    return documents
+
+folder_path = 'knowledge_sources'
+if not os.path.exists(folder_path):
+    os.makedirs(folder_path)
+    app.logger.warning(f"Created {folder_path} directory as it did not exist")
+
+documents = load_documents(folder_path)
+if not documents:
+    app.logger.warning("No documents found in knowledge_sources directory")
+    documents = [{"content": "No documents available.", "metadata": {"source": "empty", "page": 1}}]
+
+app.logger.info(f"{len(documents)} documents loaded")
+app.logger.info("FAISS indexing...")
+start_time = time.time()
+
+# Create FAISS index using the custom embedding class
+embeddings = OpenRouterEmbeddings(HEADERS)
+faiss_index = FAISS.from_texts(
+    [doc['content'] for doc in documents], 
+    embedding=embeddings,
+    metadatas=[doc['metadata'] for doc in documents]
+)
+app.logger.info(f"FAISS indexing done in {time.time() - start_time} seconds")
+
+retriever = faiss_index.as_retriever(
+    search_type="similarity",
+    search_kwargs={
+        "k": 3,
+        "score_threshold": 0.7
+    }
+)
+
+# Initialize conversation memory
+memory = ConversationBufferMemory(
+    memory_key="chat_history",
+    return_messages=True,
+    output_key="result"
+)
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    print("\n=== Chat Request Started ===")
+    print("Checking OpenRouter API configuration...")
+    print(f"OpenRouter API Key present: {bool(os.environ.get('OPENROUTER_API_KEY'))}")
+    print(f"Using model: {MODEL}")
+    
+    try:
+        data = request.get_json()
+        # Validate required fields
+        if not data or 'prompt' not in data:
+            return jsonify({"error": "Missing required 'prompt' field"}), 400
+            
+        prompt = data['prompt']
+        # Explicitly ignore any extra fields
+        data = {k: v for k, v in data.items() if k == 'prompt'}
+from flask import Flask, request, jsonify, send_from_directory
+from logging.config import dictConfig
+from models import get_db_connection, init_db
+import os
+import pandas as pd
+from dotenv import load_dotenv
+import time
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from collections import deque
+from threading import Lock
+import requests
+import json
+from typing import List
+
+from langchain_community.vectorstores import FAISS
+from langchain.chains import RetrievalQA
+from langchain.chains.conversation.memory import ConversationBufferMemory
+from langchain.embeddings.base import Embeddings
+from PyPDF2 import PdfReader
+
+# Load environment variables from .env file
+load_dotenv()
+
+# OpenRouter API configuration
+API_URL = "https://openrouter.ai/api/v1/chat/completions"
+HEADERS = {
+    "Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY')}",
+    "HTTP-Referer": "https://github.com/natgluons/RAG-Chatbot",
+    "X-Title": "HiringHelp Chatbot",
+    "Content-Type": "application/json"
+}
+MODEL = "qwen/qwen2-7b-instruct"
+
+class OpenRouterEmbeddings(Embeddings):
+    def __init__(self, headers):
+        self.headers = headers
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Get embeddings for a list of texts using OpenRouter API"""
+        embeddings = []
+        for text in texts:
+            try:
+                response = requests.post(
+                    "https://openrouter.ai/api/v1/embeddings",
+                    headers=self.headers,
+                    json={
+                        "model": "qwen/qwen2-7b-instruct",
+                        "input": text
+                    }
+                )
+                response.raise_for_status()
+                embedding = response.json()["data"][0]["embedding"]
+                embeddings.append(embedding)
+            except Exception as e:
+                app.logger.error(f"Error getting embedding: {e}")
+                # Return a zero vector as fallback
+                embeddings.append([0.0] * 1536)  # OpenAI embeddings are 1536-dimensional
+        return embeddings
+
+    def embed_query(self, text: str) -> List[float]:
+        """Get embedding for a single text using OpenRouter API"""
+        try:
+            response = requests.post(
+                "https://openrouter.ai/api/v1/embeddings",
+                headers=self.headers,
+                json={
+                    "model": "qwen/qwen2-7b-instruct",
+                    "input": text
+                }
+            )
+            response.raise_for_status()
+            return response.json()["data"][0]["embedding"]
+        except Exception as e:
+            app.logger.error(f"Error getting embedding: {e}")
+            # Return a zero vector as fallback
+            return [0.0] * 1536
+
+# Rate limiter settings
+MAX_REQUESTS_PER_MINUTE = 10
+MAX_REQUESTS_PER_DAY = 100
+MINUTE_WINDOW = 60  # seconds
+DAY_WINDOW = 24 * 60 * 60  # seconds (24 hours)
+minute_timestamps = deque()
+day_timestamps = deque()
+rate_limit_lock = Lock()
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
+
+app = Flask(__name__, static_folder='../public', static_url_path='/static')
+from flask import Flask, request, jsonify, send_from_directory
+from logging.config import dictConfig
+from models import get_db_connection, init_db
+import os
+import pandas as pd
+from dotenv import load_dotenv
+import time
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from collections import deque
+from threading import Lock
+import requests
+import json
+from typing import List
+
+from langchain_community.vectorstores import FAISS
+from langchain.chains import RetrievalQA
+from langchain.chains.conversation.memory import ConversationBufferMemory
+from langchain.embeddings.base import Embeddings
+from PyPDF2 import PdfReader
+
+# Load environment variables from .env file
+load_dotenv()
+
+# OpenRouter API configuration
+API_URL = "https://openrouter.ai/api/v1/chat/completions"
+HEADERS = {
+    "Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY')}",
+    "HTTP-Referer": "https://github.com/natgluons/RAG-Chatbot",
+    "X-Title": "HiringHelp Chatbot",
+    "Content-Type": "application/json"
+}
+MODEL = "qwen/qwen2-7b-instruct"
+
+class OpenRouterEmbeddings(Embeddings):
+    def __init__(self, headers):
+        self.headers = headers
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Get embeddings for a list of texts using OpenRouter API"""
+        embeddings = []
+        for text in texts:
+            try:
+                response = requests.post(
+                    "https://openrouter.ai/api/v1/embeddings",
+                    headers=self.headers,
+                    json={
+                        "model": "qwen/qwen2-7b-instruct",
+                        "input": text
+                    }
+                )
+                response.raise_for_status()
+                embedding = response.json()["data"][0]["embedding"]
+                embeddings.append(embedding)
+            except Exception as e:
+                app.logger.error(f"Error getting embedding: {e}")
+                # Return a zero vector as fallback
+                embeddings.append([0.0] * 1536)  # OpenAI embeddings are 1536-dimensional
+        return embeddings
+
+    def embed_query(self, text: str) -> List[float]:
+        """Get embedding for a single text using OpenRouter API"""
+        try:
+            response = requests.post(
+                "https://openrouter.ai/api/v1/embeddings",
+                headers=self.headers,
+                json={
+                    "model": "qwen/qwen2-7b-instruct",
+                    "input": text
+                }
+            )
+            response.raise_for_status()
+            return response.json()["data"][0]["embedding"]
+        except Exception as e:
+            app.logger.error(f"Error getting embedding: {e}")
+            # Return a zero vector as fallback
+            return [0.0] * 1536
+
+# Rate limiter settings
+MAX_REQUESTS_PER_MINUTE = 10
+MAX_REQUESTS_PER_DAY = 100
+MINUTE_WINDOW = 60  # seconds
+DAY_WINDOW = 24 * 60 * 60  # seconds (24 hours)
+minute_timestamps = deque()
+day_timestamps = deque()
+rate_limit_lock = Lock()
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
+
+app = Flask(__name__, static_folder='../public', static_url_path='/static')
+from flask import Flask, request, jsonify, send_from_directory
+from logging.config import dictConfig
+from models import get_db_connection, init_db
+import os
+import pandas as pd
+from dotenv import load_dotenv
+import time
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from collections import deque
+from threading import Lock
+import requests
+import json
+from typing import List
+
+from langchain_community.vectorstores import FAISS
+from langchain.chains import RetrievalQA
+from langchain.chains.conversation.memory import ConversationBufferMemory
+from langchain.embeddings.base import Embeddings
+from PyPDF2 import PdfReader
+
+# Load environment variables from .env file
+load_dotenv()
+
+# OpenRouter API configuration
+API_URL = "https://openrouter.ai/api/v1/chat/completions"
+HEADERS = {
+    "Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY')}",
+    "HTTP-Referer": "https://github.com/natgluons/RAG-Chatbot",
+    "X-Title": "HiringHelp Chatbot",
+    "Content-Type": "application/json"
+}
+MODEL = "qwen/qwen2-7b-instruct"
+
+class OpenRouterEmbeddings(Embeddings):
+    def __init__(self, headers):
+        self.headers = headers
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Get embeddings for a list of texts using OpenRouter API"""
+        embeddings = []
+        for text in texts:
+            try:
+                response = requests.post(
+                    "https://openrouter.ai/api/v1/embeddings",
+                    headers=self.headers,
+                    json={
+                        "model": "qwen/qwen2-7b-instruct",
+                        "input": text
+                    }
+                )
+                response.raise_for_status()
+                embedding = response.json()["data"][0]["embedding"]
+                embeddings.append(embedding)
+            except Exception as e:
+                app.logger.error(f"Error getting embedding: {e}")
+                # Return a zero vector as fallback
+                embeddings.append([0.0] * 1536)  # OpenAI embeddings are 1536-dimensional
+        return embeddings
+
+    def embed_query(self, text: str) -> List[float]:
+        """Get embedding for a single text using OpenRouter API"""
+        try:
+            response = requests.post(
+                "https://openrouter.ai/api/v1/embeddings",
+                headers=self.headers,
+                json={
+                    "model": "qwen/qwen2-7b-instruct",
+                    "input": text
+                }
+            )
+            response.raise_for_status()
+            return response.json()["data"][0]["embedding"]
+        except Exception as e:
+            app.logger.error(f"Error getting embedding: {e}")
+            # Return a zero vector as fallback
+            return [0.0] * 1536
+
+# Rate limiter settings
+MAX_REQUESTS_PER_MINUTE = 10
+MAX_REQUESTS_PER_DAY = 100
+MINUTE_WINDOW = 60  # seconds
+DAY_WINDOW = 24 * 60 * 60  # seconds (24 hours)
+minute_timestamps = deque()
+day_timestamps = deque()
+rate_limit_lock = Lock()
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
+
+app = Flask(__name__, static_folder='../public', static_url_path='/static')
+from flask import Flask, request, jsonify, send_from_directory
+from logging.config import dictConfig
+from models import get_db_connection, init_db
+import os
+import pandas as pd
+from dotenv import load_dotenv
+import time
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from collections import deque
+from threading import Lock
+import requests
+import json
+from typing import List
+
+from langchain_community.vectorstores import FAISS
+from langchain.chains import RetrievalQA
+from langchain.chains.conversation.memory import ConversationBufferMemory
+from langchain.embeddings.base import Embeddings
+from PyPDF2 import PdfReader
+
+# Load environment variables from .env file
+load_dotenv()
+
+# OpenRouter API configuration
+API_URL = "https://openrouter.ai/api/v1/chat/completions"
+HEADERS = {
+    "Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY')}",
+    "HTTP-Referer": "https://github.com/natgluons/RAG-Chatbot",
+    "X-Title": "HiringHelp Chatbot",
+    "Content-Type": "application/json"
+}
+MODEL = "qwen/qwen2-7b-instruct"
+
+class OpenRouterEmbeddings(Embeddings):
+    def __init__(self, headers):
+        self.headers = headers
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Get embeddings for a list of texts using OpenRouter API"""
+        embeddings = []
+        for text in texts:
+            try:
+                response = requests.post(
+                    "https://openrouter.ai/api/v1/embeddings",
+                    headers=self.headers,
+                    json={
+                        "model": "qwen/qwen2-7b-instruct",
+                        "input": text
+                    }
+                )
+                response.raise_for_status()
+                embedding = response.json()["data"][0]["embedding"]
+                embeddings.append(embedding)
+            except Exception as e:
+                app.logger.error(f"Error getting embedding: {e}")
+                # Return a zero vector as fallback
+                embeddings.append([0.0] * 1536)  # OpenAI embeddings are 1536-dimensional
+        return embeddings
+
+    def embed_query(self, text: str) -> List[float]:
+        """Get embedding for a single text using OpenRouter API"""
+        try:
+            response = requests.post(
+                "https://openrouter.ai/api/v1/embeddings",
+                headers=self.headers,
+                json={
+                    "model": "qwen/qwen2-7b-instruct",
                     "input": text
                 }
             )
