@@ -1,0 +1,35 @@
+Name: Tall Giraffe
+Email: tall.giraffe@email.com
+Phone: +321 654 0987
+Location: Hybrid
+
+Summary:
+Resourceful Project Manager with 6+ years of experience leading cross-functional teams in delivering IT projects on time and within budget. Skilled in Agile/Scrum methodologies, stakeholder communication, and risk management.
+
+Skills:
+- Agile, Scrum, Kanban
+- Project Scheduling & Budgeting
+- Jira, Trello, Microsoft Project
+- Risk Assessment & Mitigation
+- Team Leadership
+
+Experience:
+IT Corpo – Project Manager
+Feb 2021 – Present
+- Managed a portfolio of 8 enterprise software projects with budgets totaling $1.2M
+- Implemented Agile workflows that reduced delivery delays by 30%
+- Regularly communicated with stakeholders to ensure project transparency
+
+DevFirm – Associate Project Manager
+May 2018 – Jan 2021
+- Supported senior PMs in coordinating timelines, scope, and deliverables
+- Helped organize sprint planning and daily standups across 3 product teams
+- Assisted in developing project documentation and reporting metrics
+
+Education:
+Bachelor of Science in Information Systems
+Tech University of Fakenation, 2014 – 2018
+
+Certifications:
+- Certified ScrumMaster (CSM)
+- PMP – In Progress 

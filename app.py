@@ -3,14 +3,16 @@ import os
 import pandas as pd
 from dotenv import load_dotenv
 import time
+from collections import deque
+from threading import Lock
 import requests
 import json
 from typing import List
 from langchain_community.vectorstores import FAISS
+from langchain.chains import RetrievalQA
 from langchain.chains.conversation.memory import ConversationBufferMemory
 from langchain.embeddings.base import Embeddings
 from PyPDF2 import PdfReader
-from PyPDF2.errors import PdfReadError
 
 # Load environment variables from .env file
 load_dotenv()
@@ -47,7 +49,6 @@ class OpenRouterEmbeddings(Embeddings):
                 embeddings.append(embedding)
             except Exception as e:
                 print(f"Error getting embedding: {e}")
-                # Return a zero vector as fallback
                 embeddings.append([0.0] * 1536)
         return embeddings
 
@@ -66,7 +67,6 @@ class OpenRouterEmbeddings(Embeddings):
             return response.json()["data"][0]["embedding"]
         except Exception as e:
             print(f"Error getting embedding: {e}")
-            # Return a zero vector as fallback
             return [0.0] * 1536
 
 def chunk_text(text, max_length=50):
@@ -110,100 +110,70 @@ def chunk_text(text, max_length=50):
 
 def load_documents(folder_path):
     documents = []
+    # for filename in os.listdir(folder_path):
+    #     file_path = os.path.join(folder_path, filename)
+    #     if filename.endswith(".txt"):
+    #         with open(file_path, 'r', encoding='utf-8') as file:
+    #             text_chunks = chunk_text(file.read())
+    #             for chunk in text_chunks:
+    #                 documents.append({
+    #                     "content": chunk,
+    #                     "metadata": {
+    #                         "source": filename,
+    #                         "page": 1
+    #                     }
+    #                 })
+    #     elif filename.endswith(".pdf"):
+    #         reader = PdfReader(file_path)
+    #         for page_num, page in enumerate(reader.pages):
+    #             text = page.extract_text()
+    #             if text:
+    #                 text_chunks = chunk_text(text)
+    #                 for chunk in text_chunks:
+    #                     documents.append({
+    #                         "content": chunk,
+    #                         "metadata": {
+    #                             "source": filename,
+    #                             "page": page_num + 1
+    #                         }
+    #                     })
+    #     elif filename.endswith(".csv"):
+    #         df = pd.read_csv(file_path)
+    #         text_chunks = chunk_text(df.to_string())
+    #         for chunk in text_chunks:
+    #             documents.append({
+    #                 "content": chunk,
+    #                 "metadata": {
+    #                     "source": filename,
+    #                     "page": 1
+    #                 }
+    #             })
     
-    # Create dummy document as fallback
-    dummy_content = """
-    Candidate Information:
-    
-    Name: Kristy Natasha Yohanes
-    Position: AI Engineer
-    Experience: 5 years
-    Skills: Python, TensorFlow, PyTorch, NLP
-    Education: MS in Computer Science
-    
-    Name: John Smith
-    Position: Data Scientist
-    Experience: 3 years
-    Skills: Python, SQL, Data Analysis, Machine Learning
-    Education: BS in Statistics
-    
-    Name: Sarah Johnson
-    Position: Frontend Developer
-    Experience: 4 years
-    Skills: JavaScript, React, HTML, CSS
-    Education: BS in Computer Science
-    """
-    
-    # If directory doesn't exist or is empty, use dummy data
-    if not os.path.exists(folder_path) or not os.listdir(folder_path):
-        print("No documents found, using dummy candidate data")
-        documents.append({
-            "content": dummy_content,
-            "metadata": {
-                "source": "dummy_candidates.txt",
-                "page": 1
-            }
-        })
-        return documents
-    
-    # Process files if they exist
-    for filename in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, filename)
-        try:
-            if filename.endswith(".txt"):
-                with open(file_path, 'r', encoding='utf-8') as file:
-                    text_chunks = chunk_text(file.read())
-                    for chunk in text_chunks:
-                        documents.append({
-                            "content": chunk,
-                            "metadata": {
-                                "source": filename,
-                                "page": 1
-                            }
-                        })
-            elif filename.endswith(".pdf"):
+    # Process text files from the main directory
+    if os.path.exists(folder_path) and os.listdir(folder_path):
+        print(f"Processing text files from {folder_path}")
+        for filename in os.listdir(folder_path):
+            if filename.endswith('.txt'):
+                file_path = os.path.join(folder_path, filename)
                 try:
-                    reader = PdfReader(file_path)
-                    for page_num, page in enumerate(reader.pages):
-                        text = page.extract_text()
-                        if text:
-                            text_chunks = chunk_text(text)
-                            for chunk in text_chunks:
-                                documents.append({
-                                    "content": chunk,
-                                    "metadata": {
-                                        "source": filename,
-                                        "page": page_num + 1
-                                    }
-                                })
-                except PdfReadError as e:
-                    print(f"Error reading PDF {filename}: {e}")
+                    with open(file_path, 'r', encoding='utf-8') as file:
+                        text_content = file.read()
+                        text_chunks = chunk_text(text_content)
+                        for chunk in text_chunks:
+                            documents.append({
+                                "content": chunk,
+                                "metadata": {
+                                    "source": filename,
+                                    "page": 1
+                                }
+                            })
+                except Exception as e:
+                    print(f"Error processing text file {filename}: {e}")
                     continue
-            elif filename.endswith(".csv"):
-                df = pd.read_csv(file_path)
-                text_chunks = chunk_text(df.to_string())
-                for chunk in text_chunks:
-                    documents.append({
-                        "content": chunk,
-                        "metadata": {
-                            "source": filename,
-                            "page": 1
-                        }
-                    })
-        except Exception as e:
-            print(f"Error processing file {filename}: {e}")
-            continue
     
-    # If no valid documents were found, use dummy data
     if not documents:
-        print("No valid documents found, using dummy candidate data")
-        documents.append({
-            "content": dummy_content,
-            "metadata": {
-                "source": "dummy_candidates.txt",
-                "page": 1
-            }
-        })
+        print("No text files found in the directory")
+        return []
     
     return documents
 
@@ -214,6 +184,10 @@ if not os.path.exists(folder_path):
     print(f"Created {folder_path} directory as it did not exist")
 
 documents = load_documents(folder_path)
+if not documents:
+    print("No documents found in knowledge_sources directory")
+    documents = [{"content": "No documents available.", "metadata": {"source": "empty", "page": 1}}]
+
 print(f"{len(documents)} documents loaded")
 print("FAISS indexing...")
 start_time = time.time()
@@ -252,47 +226,34 @@ def get_chat_completion(messages):
         print(f"Error getting chat completion: {e}")
         return None
 
-def list_candidates(history):
-    return history + [[None, "Available candidates include: Kristy Natasha Yohanes, John Smith, and Sarah Johnson."]]
-
-def candidate_info(history):
-    return history + [[None, "Kristy Natasha Yohanes is an AI Engineer with 5 years of experience. She has skills in Python, TensorFlow, PyTorch, and NLP. She has a Master's degree in Computer Science."]]
-
-def best_candidate(history):
-    return history + [[None, "Based on the requirements for an AI Engineer role, Kristy Natasha Yohanes would be the best candidate. She has 5 years of experience in AI development and expertise in relevant technologies like TensorFlow and PyTorch."]]
-
 def chat(message, history):
     """Handle chat messages"""
-    try:
-        # Get relevant documents
-        docs = faiss_index.similarity_search(message, k=3)
+    # Get relevant documents
+    docs = faiss_index.similarity_search(message, k=3)
+    
+    # Prepare context from documents
+    context = "\n".join([doc.page_content for doc in docs])
+    
+    # Prepare messages for the API
+    messages = [
+        {"role": "system", "content": "You are HiringHelp, an AI assistant that helps with hiring-related questions. Use the provided context to answer questions about candidates and hiring."},
+        {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {message}"}
+    ]
+    
+    # Get response from API
+    response = get_chat_completion(messages)
+    
+    if response and "choices" in response:
+        answer = response["choices"][0]["message"]["content"]
         
-        # Prepare context from documents
-        context = "\n".join([doc.page_content for doc in docs])
+        # Add sources if available
+        sources = [{"title": doc.metadata["source"], "page_number": doc.metadata["page"]} for doc in docs]
+        if sources:
+            answer += "\n\nSources:\n" + "\n".join([f"- {source['title']} (Page {source['page_number']})" for source in sources])
         
-        # Prepare messages for the API
-        messages = [
-            {"role": "system", "content": "You are HiringHelp, an AI assistant that helps with hiring-related questions. Use the provided context to answer questions about candidates and hiring."},
-            {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {message}"}
-        ]
-        
-        # Get response from API
-        response = get_chat_completion(messages)
-        
-        if response and "choices" in response:
-            answer = response["choices"][0]["message"]["content"]
-            
-            # Add sources if available
-            sources = [{"title": doc.metadata["source"], "page_number": doc.metadata["page"]} for doc in docs]
-            if sources:
-                answer += "\n\nSources:\n" + "\n".join([f"- {source['title']} (Page {source['page_number']})" for source in sources])
-            
-            return answer
-        else:
-            return "I apologize, but I encountered an error while processing your request. Please try again."
-    except Exception as e:
-        print(f"Error in chat function: {e}")
-        return "I encountered an error. The default candidates are Kristy Natasha Yohanes (AI Engineer), John Smith (Data Scientist), and Sarah Johnson (Frontend Developer)."
+        return answer
+    else:
+        return "I apologize, but I encountered an error while processing your request. Please try again."
 
 # Create Gradio interface
 with gr.Blocks(css="styles.css") as demo:
@@ -300,10 +261,9 @@ with gr.Blocks(css="styles.css") as demo:
     gr.Markdown("Ask me anything about candidates and hiring!")
     
     chatbot = gr.Chatbot(
-        value=[["", "Hello, how can I help you today?"]],
+        value=[["HiringHelp", "Hello, how can I help you today?"]],
         height=600,
-        show_label=False,
-        type="messages"
+        show_label=False
     )
     
     with gr.Row():
@@ -317,22 +277,18 @@ with gr.Blocks(css="styles.css") as demo:
     
     # Example questions
     gr.Markdown("### Try these example questions:")
-    
     with gr.Row():
-        btn1 = gr.Button("List all the available candidates")
-        btn2 = gr.Button("Tell me about a candidate named Kristy Natasha Yohanes")
-        btn3 = gr.Button("Which candidate is best for an AI Engineer role?")
+        gr.Button("List all the available candidates")
+        gr.Button("Tell me about a candidate named Kristy Natasha Yohanes")
+        gr.Button("Which candidate is best for an AI Engineer role?")
     
     # Handle message submission
-    submit.click(lambda message, history: (None, history + [[message, chat(message, history)]]), 
-                [msg, chatbot], [msg, chatbot])
-    msg.submit(lambda message, history: (None, history + [[message, chat(message, history)]]), 
-              [msg, chatbot], [msg, chatbot])
+    submit.click(chat, [msg, chatbot], [chatbot])
+    msg.submit(chat, [msg, chatbot], [chatbot])
     
     # Handle example questions
-    btn1.click(list_candidates, chatbot, chatbot)
-    btn2.click(candidate_info, chatbot, chatbot)
-    btn3.click(best_candidate, chatbot, chatbot)
+    for btn in demo.children[3].children[0].children:
+        btn.click(lambda x: msg.update(x), btn, msg)
 
-# Launch the app
-demo.launch() 
+if __name__ == "__main__":
+    demo.launch() 

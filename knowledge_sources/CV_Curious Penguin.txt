@@ -1,0 +1,31 @@
+Name: Curious Penguin
+Email: curious.penguin@email.com
+Phone: +987 123 4560
+Location: On-site
+
+Summary:
+Detail-driven QA Tester with 3+ years of experience in manual and automated testing. Adept at identifying bugs, writing test cases, and ensuring product quality across multiple platforms and devices.
+
+Skills:
+- Manual Testing, Regression Testing
+- Selenium, Postman
+- Test Case Creation & Execution
+- Bug Tracking (Jira, Bugzilla)
+- Basic SQL
+
+Experience:
+Software Space – QA Tester
+Jun 2021 – Present
+- Created 100+ detailed test cases and executed tests for web and mobile platforms
+- Found and documented over 200 bugs, helping reduce post-release issues by 35%
+- Collaborated with developers to ensure issue resolution in a timely manner
+
+Tech Solutioneers – QA Intern
+Jan 2020 – May 2021
+- Assisted in writing and running manual test scripts for client-facing applications
+- Reported bugs with clear reproduction steps
+- Participated in daily scrum meetings and QA reviews
+
+Education:
+Bachelor of Computer Science
+National Fake University, 2016 – 2020 
