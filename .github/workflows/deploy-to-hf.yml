@@ -26,18 +26,17 @@ jobs:
         env:
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
           SPACE_NAME: ${{ secrets.SPACE_NAME }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           # Build the Docker image
           docker build -t hf-space .
           
-          # Tag the image for Hugging Face registry
-          docker tag hf-space registry.huggingface.co/$HF_USERNAME/$SPACE_NAME:latest
-          
           # Login to Hugging Face Container Registry
-          echo ${{ secrets.HF_TOKEN }} | docker login registry.huggingface.co -u $HF_USERNAME --password-stdin
+          echo $HF_TOKEN | docker login -u $HF_USERNAME --password-stdin https://registry.huggingface.co
           
-          # Push the image
-          docker push registry.huggingface.co/$HF_USERNAME/$SPACE_NAME:latest
+          # Tag and push the image
+          docker tag hf-space registry.huggingface.co/spaces/$HF_USERNAME/$SPACE_NAME
+          docker push registry.huggingface.co/spaces/$HF_USERNAME/$SPACE_NAME
       
       # Upload knowledge sources (if needed)
       - name: Upload knowledge sources
