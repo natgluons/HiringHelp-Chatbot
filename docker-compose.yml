@@ -11,4 +11,6 @@ services:
     environment:
       FLASK_APP: backend/app.py
       FLASK_RUN_HOST: 0.0.0.0 # Ensures Flask binds to 0.0.0.0
+    env_file:
+      - .env # Load environment variables from .env file
     command: flask run --host=0.0.0.0 # Run the Flask app

@@ -4,82 +4,342 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RAG Chatbot</title>
+    <title>👔 HiringHelp Chatbot</title>
+    <meta name="description" content="This chatbot helps streamline the hiring process by reading and understanding keywords related to job positions.">
     <!-- <link rel="stylesheet" href="styles.css"> -->
     <style>
+        :root {
+            --primary-color: #433b6b;
+            --secondary-color: #5a4d8f;
+            --background-color: #433b6b;
+            --text-color: #433b6b;
+            --border-color: #e1e8ed;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            background-color: #262626;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: var(--background-color);
+            background-image: 
+                linear-gradient(135deg, rgba(44, 62, 80, 0.97) 0%, rgba(52, 73, 94, 0.95) 100%),
+                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"),
+                url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M50 50c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10s-10-4.477-10-10 4.477-10 10-10zM10 90c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10-10-4.477-10-10zm0-80c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10S10 15.523 10 10z'/%3E%3C/g%3E%3C/svg%3E"),
+                radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.02) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.01) 0%, transparent 50%);
+            background-position: 0 0, 20px 20px, 0 0, 0 0, 0 0;
+            background-size: auto, 60px 60px, 100px 100px, 100% 100%, 100% 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            color: var(--text-color);
+            padding: 40px 20px;
+            animation: subtleShift 30s ease-in-out infinite;
+        }
+
+        @keyframes subtleShift {
+            0% {
+                background-position: 0 0, 20px 20px, 0 0, 0 0, 0 0;
+            }
+            50% {
+                background-position: 0 0, 25px 25px, 5px 5px, 0 0, 0 0;
+            }
+            100% {
+                background-position: 0 0, 20px 20px, 0 0, 0 0, 0 0;
+            }
         }
 
         #chat-container {
-            width: 400px;
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 800px;
+            background-color: rgba(255, 255, 255, 0.98);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            margin: 40px auto;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         #chatbox {
             width: 100%;
-            height: 300px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            padding: 5px;
-            padding-right: 0px;
-            margin-bottom: 10px;
+            height: 250px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
             overflow-y: scroll;
-            background-color: #f9f9f9;
+            background-color: #fff;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        #chatbox p {
+            margin: 8px 0;
+        }
+
+        .hiringhelp-message {
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .user-message {
+            color: #2c3e50;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
         }
 
         #userInput {
-            width: calc(100% - 80px);
-            padding: 10px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-            margin-right: 10px;
-            margin-bottom: 10px;
+            flex: 1;
+            padding: 12px 15px;
+            border-radius: 6px;
+            border: 2px solid var(--border-color);
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        #userInput:focus {
+            outline: none;
+            border-color: var(--secondary-color);
         }
 
         #sendButton {
-            padding: 10px 20px;
+            padding: 12px 30px;
             border: none;
-            border-radius: 4px;
-            background-color: #6A89A7;
+            border-radius: 6px;
+            background-color: var(--primary-color);
             color: white;
             cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-width: 100px;
         }
 
         #sendButton:hover {
-            background-color: #0056b3;
+            background-color: var(--secondary-color);
+            transform: translateY(-1px);
         }
 
         h1 {
             text-align: center;
-            color: #333;
-            margin-top: 10px;
+            color: var(--primary-color);
+            margin: 0 0 5px 0;
+            font-size: 2.5em;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            margin: 0 0 20px 0;
         }
 
         .centered-text {
             text-align: center;
+            color: var(--text-color);
+            margin-bottom: 25px;
+            font-size: 1.2em;
+            font-weight: 400;
+        }
+
+        #rate-limit-info {
+            background-color: #f8f9fa;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 20px;
+            margin-top: 20px;
+            font-size: 0.85em;
+            text-align: center;
+            color: #666;
+        }
+
+        /* Custom scrollbar */
+        #chatbox::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #chatbox::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        #chatbox::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        #chatbox::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary-color);
+        }
+
+        /* Remove unused rate limit styles */
+        .rate-limit-group,
+        .rate-limit-label,
+        .rate-limit-value,
+        .rate-limit-value.warning {
+            display: none;
+        }
+
+        .demo-notice {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 8px 16px;
+            border-radius: 6px;
+            margin: 10px 0;
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+        .docs-link {
+            text-align: right;
+            margin-bottom: 10px;
+        }
+
+        .docs-link a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-size: 0.9em;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .docs-link a:hover {
+            background-color: rgba(67, 59, 107, 0.1);
+        }
+
+        .example-prompts {
+            background-color: #f0f2f5;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin: 15px 0;
+            font-size: 0.9em;
+        }
+
+        .example-prompts p {
+            margin: 0 0 8px 0;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .example-prompts ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #555;
+        }
+
+        .example-prompts li {
+            margin: 5px 0;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .example-prompts li:hover {
+            color: var(--primary-color);
+        }
+
+        .example-prompts-container {
+            background-color: rgba(67, 59, 107, 0.05);
+            border-radius: 8px;
+            padding: 12px;
+            margin: 15px 0;
+        }
+
+        .example-prompts-container p {
+            margin: 0 0 8px 0;
+            color: var(--primary-color);
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .example-prompt {
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin: 6px 0;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .example-prompt:hover {
+            background-color: var(--primary-color);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-message {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            color: var(--primary-color);
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        #generation-time {
+            color: var(--primary-color);
+            font-size: 14px;
         }
     </style>
 </head>
 
 <body>
     <div id="chat-container">
-        <h1>RAG Chatbot</h1>
+        <h1>👔 HiringHelp Chatbot</h1>
+        <div class="subtitle">Made by <a href="https://github.com/natgluons" target="_blank">natgluons</a></div>
+        <div class="demo-notice">
+            This is a demo version using sample data. For testing purposes only.
+        </div>
         <h3 class="centered-text">Find the best candidate according to your company needs!</h3>
-        <div id="chatbox"></div>
-        <input type="text" id="userInput" placeholder="Type your message here...">
-        <button id="sendButton">Send</button>
+        <div class="docs-link">
+            <a href="/docs" target="_blank">📚 View Available Candidate's Resume</a>
+        </div>
+        <div id="chatbox">
+            <!-- Messages will be added here -->
+        </div>
+
+        <div class="input-container">
+            <input type="text" id="userInput" placeholder="Type your message...">
+            <button id="sendButton">Send</button>
+        </div>
+
+        <div id="rate-limit-info">
+            This chatbot is rate-limited to 10 texts per minute and 100 texts for day.
+        </div>
     </div>
     <script src="app.js"></script>
+    <script>
+        // Make example prompts clickable
+        document.querySelectorAll('.example-prompts li').forEach(li => {
+            li.addEventListener('click', () => {
+                const prompt = li.textContent.replace(/^"(.+)"$/, '$1');
+                document.getElementById('userInput').value = prompt;
+            });
+        });
+    </script>
 </body>
 
 </html>
