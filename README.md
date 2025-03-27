@@ -121,20 +121,26 @@ HiringHelp-Chatbot/
 └── .env                   # Environment variables
 ```
 
-## Deployment on Hugging Face Spaces
+## Deploying to Hugging Face Spaces
 
 1. Create a new Space on Hugging Face:
-   - Go to huggingface.co/spaces
-   - Click "Create new Space"
-   - Choose "Docker" as the SDK
-   - Set the visibility as needed
+   - Go to [Hugging Face Spaces](https://huggingface.co/spaces)
+   - Click "New Space"
+   - Choose "Gradio" as the SDK
+   - Name your space (e.g., "HiringHelp-Chatbot")
 
-2. Configure the Space:
-   - Add your `OPENROUTER_API_KEY` to the Space's secrets
-   - Link your GitHub repository
-   - Enable Docker build
+2. Push your code to the Space:
+```bash
+git remote add space https://huggingface.co/spaces/yourusername/HiringHelp-Chatbot
+git push space main
+```
 
-3. The Space will automatically build and deploy your Docker container.
+3. Set up environment variables:
+   - Go to your Space's settings
+   - Navigate to "Repository Secrets"
+   - Add your `OPENROUTER_API_KEY` as a secret
+
+4. The Space will automatically build and deploy your application.
 
 ## Usage Examples
 ```
@@ -156,9 +162,3 @@ This application handles sensitive information. Always:
 - Use environment variables for secrets
 - Review candidate information handling policies
 - Monitor rate limits and usage
-
-## License
-[Add your license information here]
-
-## Contact
-[Add your contact information here]

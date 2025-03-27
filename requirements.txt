@@ -13,3 +13,4 @@ tiktoken
 langchain-openai
 faiss-cpu
 Flask-Limiter>=3.5.0
+gradio>=4.19.2

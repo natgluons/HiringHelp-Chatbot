@@ -26,3 +26,146 @@ body {
 #sendButton {
     padding: 10px 20px;
 }
+
+/* Main container styles */
+.contain {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Chatbot container styles */
+.chatbot {
+    background-color: #f5f5f5;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Message styles */
+.message {
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.user-message {
+    background-color: #e3f2fd;
+    margin-left: 20%;
+}
+
+.hiringhelp-message {
+    background-color: #ffffff;
+    margin-right: 20%;
+    border: 1px solid #e0e0e0;
+}
+
+/* Input area styles */
+.input-area {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.textbox {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+/* Button styles */
+.button {
+    padding: 10px 20px;
+    background-color: #2196f3;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+
+.button:hover {
+    background-color: #1976d2;
+}
+
+/* Example questions styles */
+.example-questions {
+    margin-top: 20px;
+}
+
+.example-question {
+    display: inline-block;
+    margin: 5px;
+    padding: 8px 15px;
+    background-color: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.example-question:hover {
+    background-color: #e0e0e0;
+}
+
+/* Loading indicator styles */
+.loading {
+    display: inline-block;
+    margin-left: 10px;
+    color: #666;
+}
+
+/* Error message styles */
+.error {
+    color: #f44336;
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #ffebee;
+    border-radius: 5px;
+}
+
+/* Sources styles */
+.sources {
+    font-size: 14px;
+    color: #666;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #e0e0e0;
+}
+
+/* Gradio specific overrides */
+.gradio-container {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.gradio-button {
+    background-color: #2196f3 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 5px !important;
+    padding: 10px 20px !important;
+    cursor: pointer !important;
+    transition: background-color 0.3s !important;
+}
+
+.gradio-button:hover {
+    background-color: #1976d2 !important;
+}
+
+.gradio-textbox {
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 5px !important;
+    padding: 10px !important;
+}
+
+.gradio-chatbot {
+    background-color: #f5f5f5 !important;
+    border-radius: 10px !important;
+    padding: 20px !important;
+    margin-bottom: 20px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
