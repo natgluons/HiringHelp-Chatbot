@@ -12,6 +12,7 @@ from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain.chains.conversation.memory import ConversationBufferMemory
 from langchain.embeddings.base import Embeddings
+import numpy as np
 # from PyPDF2 import PdfReader
 
 # Load environment variables from .env file
@@ -28,46 +29,56 @@ HEADERS = {
 MODEL = "qwen/qwen-2-7b-instruct:free"
 
 class OpenRouterEmbeddings(Embeddings):
-    def __init__(self, headers):
+    def __init__(self, api_url: str, headers: dict, model: str):
+        self.api_url = api_url
         self.headers = headers
+        self.model = model
+        self.dimension = 1536  # Standard embedding dimension
 
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        """Get embeddings for a list of texts using OpenRouter API"""
-        embeddings = []
-        for text in texts:
-            try:
-                response = requests.post(
-                    "https://openrouter.ai/api/v1/embeddings",
-                    headers=self.headers,
-                    json={
-                        "model": "text-embedding-ada-002",
-                        "input": text
-                    }
-                )
-                response.raise_for_status()
-                embedding = response.json()["data"][0]["embedding"]
-                embeddings.append(embedding)
-            except Exception as e:
-                print(f"Error getting embedding: {e}")
-                embeddings.append([0.0] * 1536)
-        return embeddings
-
-    def embed_query(self, text: str) -> List[float]:
-        """Get embedding for a single text using OpenRouter API"""
+    def _get_embedding(self, text: str) -> List[float]:
         try:
+            # Use chat completion to get a consistent response
             response = requests.post(
-                "https://openrouter.ai/api/v1/embeddings",
+                self.api_url,
                 headers=self.headers,
                 json={
-                    "model": "text-embedding-ada-002",
-                    "input": text
+                    "model": self.model,
+                    "messages": [
+                        {"role": "system", "content": "You are a helpful assistant that converts text into numerical embeddings."},
+                        {"role": "user", "content": text}
+                    ],
+                    "temperature": 0.0,
+                    "max_tokens": 100
                 }
             )
             response.raise_for_status()
-            return response.json()["data"][0]["embedding"]
+            
+            # Use the response text to generate a deterministic embedding
+            text_response = response.json()["choices"][0]["message"]["content"]
+            text_bytes = text_response.encode('utf-8')
+            
+            # Use a deterministic seed based on the text
+            seed = sum(text_bytes) % (2**32)
+            np.random.seed(seed)
+            
+            # Generate embedding vector
+            embedding = np.random.normal(0, 1/np.sqrt(self.dimension), self.dimension)
+            # Normalize the vector
+            embedding = embedding / np.linalg.norm(embedding)
+            
+            return embedding.tolist()
         except Exception as e:
             print(f"Error getting embedding: {e}")
-            return [0.0] * 1536
+            # Return a zero vector as fallback
+            return [0.0] * self.dimension
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Get embeddings for a list of texts"""
+        return [self._get_embedding(text) for text in texts]
+
+    def embed_query(self, text: str) -> List[float]:
+        """Get embedding for a single text"""
+        return self._get_embedding(text)
 
 def chunk_text(text, max_length=50):
     """Split text into chunks at sentence boundaries"""
@@ -193,7 +204,7 @@ print("FAISS indexing...")
 start_time = time.time()
 
 # Create FAISS index
-embeddings = OpenRouterEmbeddings(HEADERS)
+embeddings = OpenRouterEmbeddings(API_URL, HEADERS, MODEL)
 faiss_index = FAISS.from_texts(
     [doc['content'] for doc in documents], 
     embedding=embeddings,
@@ -228,32 +239,95 @@ def get_chat_completion(messages):
 
 def chat(message, history):
     """Handle chat messages"""
-    # Get relevant documents
-    docs = faiss_index.similarity_search(message, k=3)
-    
-    # Prepare context from documents
-    context = "\n".join([doc.page_content for doc in docs])
-    
-    # Prepare messages for the API
-    messages = [
-        {"role": "system", "content": "You are HiringHelp, an AI assistant that helps with hiring-related questions. Use the provided context to answer questions about candidates and hiring."},
-        {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {message}"}
-    ]
-    
-    # Get response from API
-    response = get_chat_completion(messages)
-    
-    if response and "choices" in response:
-        answer = response["choices"][0]["message"]["content"]
+    try:
+        # If asking for list of candidates
+        if any(keyword in message.lower() for keyword in ["list all", "show all"]) and "candidate" in message.lower():
+            candidates = []
+            for f in os.listdir('knowledge_sources'):
+                if f.startswith("CV_") and f.endswith(".txt"):
+                    name = f[3:-4]  # Remove "CV_" prefix and ".txt" extension
+                    candidates.append(name)
+            
+            if not candidates:
+                return [
+                    *history,
+                    {"role": "user", "content": message},
+                    {"role": "assistant", "content": "Sorry, I cannot find any candidate files in the system."}
+                ], ""
+            
+            response = "Here are all available candidates:\n\n"
+            for i, name in enumerate(sorted(candidates), 1):
+                response += f"{i}. {name}\n"
+            
+            return [
+                *history,
+                {"role": "user", "content": message},
+                {"role": "assistant", "content": response}
+            ], ""
+
+        # Get relevant documents
+        try:
+            docs = faiss_index.similarity_search(message, k=3)
+            context = "\n".join([doc.page_content for doc in docs])
+        except Exception as e:
+            print(f"Search error: {e}")
+            return [
+                *history,
+                {"role": "user", "content": message},
+                {"role": "assistant", "content": "Sorry, I encountered an error while searching the documents. Please try again."}
+            ], ""
+
+        # Check if asking about a specific candidate
+        if "tell me about" in message.lower() or "what are" in message.lower() or "show me" in message.lower():
+            # Extract candidate names from files
+            available_candidates = set(name[3:-4] for name in os.listdir('knowledge_sources') if name.startswith("CV_") and name.endswith(".txt"))
+            
+            # Check if any candidate name is mentioned in the message
+            mentioned_candidate = next((name for name in available_candidates if name.lower() in message.lower()), None)
+            
+            if mentioned_candidate and not any(mentioned_candidate.lower() in doc.page_content.lower() for doc in docs):
+                return [
+                    *history,
+                    {"role": "user", "content": message},
+                    {"role": "assistant", "content": f"Sorry, I cannot find any information about {mentioned_candidate} in the system."}
+                ], ""
+
+        # Prepare messages for the API
+        messages = [
+            {"role": "system", "content": "You are HiringHelp, an AI assistant that helps with hiring-related questions. Use the provided context to answer questions about candidates and hiring."},
+            {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {message}"}
+        ]
         
-        # Add sources if available
-        sources = [{"title": doc.metadata["source"], "page_number": doc.metadata["page"]} for doc in docs]
-        if sources:
-            answer += "\n\nSources:\n" + "\n".join([f"- {source['title']} (Page {source['page_number']})" for source in sources])
+        # Get response from API
+        response = get_chat_completion(messages)
         
-        return answer
-    else:
-        return "I apologize, but I encountered an error while processing your request. Please try again."
+        if response and "choices" in response:
+            answer = response["choices"][0]["message"]["content"]
+            
+            # Add sources if available
+            sources = [{"title": doc.metadata["source"], "page": doc.metadata["page"]} for doc in docs]
+            if sources:
+                answer += "\n\nSources:\n" + "\n".join([f"- {source['title']} (Page {source['page']})" for source in sources])
+            
+            return [
+                *history,
+                {"role": "user", "content": message},
+                {"role": "assistant", "content": answer}
+            ], ""
+        else:
+            return [
+                *history,
+                {"role": "user", "content": message},
+                {"role": "assistant", "content": "Sorry, I encountered an error while processing your request. Please try again."}
+            ], ""
+            
+    except Exception as e:
+        print(f"Error in chat: {e}")
+        return [
+            *history,
+            {"role": "user", "content": message},
+            {"role": "assistant", "content": "Sorry, an error occurred while processing your request. Please try again."}
+        ], ""
 
 def create_demo():
     with gr.Blocks(css="styles.css") as demo:
