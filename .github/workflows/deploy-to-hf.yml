@@ -26,8 +26,7 @@ jobs:
         run: |
           echo "Testing connectivity..."
           curl -v https://huggingface.co || true
-          curl -v https://api.huggingface.co || true
-          dig huggingface.co
+          curl -v https://hub-ci.huggingface.co || true
       
       # Build and push Docker image
       - name: Build and push Docker image
@@ -40,11 +39,11 @@ jobs:
           docker build -t hf-space .
           
           # Login to Hugging Face Container Registry
-          echo $HF_TOKEN | docker login https://api.huggingface.co -u $HF_USERNAME --password-stdin
+          echo $HF_TOKEN | docker login hub-ci.huggingface.co -u $HF_USERNAME --password-stdin
           
           # Tag and push the image
-          docker tag hf-space api.huggingface.co/spaces/$HF_USERNAME/$SPACE_NAME:latest
-          docker push api.huggingface.co/spaces/$HF_USERNAME/$SPACE_NAME:latest
+          docker tag hf-space hub-ci.huggingface.co/spaces/natgluons/hiringhelp-chatbot:latest
+          docker push hub-ci.huggingface.co/spaces/natgluons/hiringhelp-chatbot:latest
       
       # Upload knowledge sources (if needed)
       - name: Upload knowledge sources
