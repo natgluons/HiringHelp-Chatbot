@@ -12,7 +12,7 @@ from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain.chains.conversation.memory import ConversationBufferMemory
 from langchain.embeddings.base import Embeddings
-from PyPDF2 import PdfReader
+# from PyPDF2 import PdfReader
 
 # Load environment variables from .env file
 load_dotenv()

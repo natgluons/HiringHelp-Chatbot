@@ -1,10 +1,13 @@
 ---
 title: HiringHelp-Chatbot
-app_file: app.py
+emoji: 👨‍💼
+colorFrom: blue
+colorTo: indigo
 sdk: gradio
-sdk_version: 5.22.0
+sdk_version: "5.22.0"
+app_file: app.py
+pinned: false
 ---
-
 
 # HiringHelp Chatbot
 
@@ -14,7 +17,7 @@ A chatbot that helps with hiring-related questions using RAG (Retrieval-Augmente
 
 - Interactive chat interface using Gradio
 - RAG system for retrieving relevant information from candidate documents
-- Support for multiple document formats (PDF, TXT, CSV)
+- Support for text document formats
 - Conversation memory to maintain context
 - Real-time responses using OpenRouter API
 
@@ -53,11 +56,11 @@ A chatbot that helps with hiring-related questions using RAG (Retrieval-Augmente
 - gradio
 - openai
 - python-dotenv
-- PyPDF2
 - pandas
 - langchain
 - faiss-cpu
 - requests
+- beautifulsoup4
 
 ## Local Development
 
@@ -83,7 +86,7 @@ pip install -r requirements.txt
 OPENROUTER_API_KEY=your_api_key_here
 ```
 
-5. Add your knowledge source documents (PDF, TXT, or CSV) to the `knowledge_sources` directory.
+5. Add your knowledge source documents to the `knowledge_sources` directory.
 
 6. Run the application:
 ```bash
@@ -123,7 +126,6 @@ HiringHelp-Chatbot/
 ├── requirements.txt    # Python dependencies
 ├── .env               # Environment variables (local only)
 └── knowledge_sources/ # Directory for knowledge base documents
-    ├── sample_candidates.txt  # Sample candidate data
     └── README.md      # Instructions for adding documents
 ```
 
@@ -136,7 +138,7 @@ HiringHelp Chatbot is an intelligent hiring assistant that uses Retrieval-Augmen
 
 ## Features
 - **RAG-Based Analysis**: Uses Retrieval-Augmented Generation to provide accurate, document-grounded responses
-- **Resume Analysis**: Processes and analyzes candidate resumes in PDF format
+- **Resume Analysis**: Processes and analyzes candidate resumes
 - **Intelligent Matching**: Uses LangChain and advanced language models to match candidates with job requirements
 - **Interactive Chat Interface**: User-friendly web interface for natural conversations
 - **Rate-Limited API**: Implements rate limiting (10 requests/minute, 100 requests/day) for stable service
@@ -150,25 +152,25 @@ HiringHelp Chatbot is an intelligent hiring assistant that uses Retrieval-Augmen
   - Qwen-2-7B-Chat: Primary model for chat completions (via OpenRouter)
   - text-embedding-ada-002: OpenAI's embedding model for document vectorization
 - **Vector Database**: FAISS for efficient document retrieval
-- **Document Processing**: PyPDF2 for PDF parsing, LangChain for text splitting and embedding
+- **Document Processing**: LangChain for text splitting and embedding
 - **Rate Limiting**: Flask-Limiter for API protection
 - **Data Storage**: SQLite for persistent storage
 - **Containerization**: Docker for deployment
 
 ## How RAG Works in This Application
 1. **Document Ingestion**:
-   - Resumes are processed and split into chunks using LangChain's text splitters
+   - Documents are processed and split into chunks using LangChain's text splitters
    - Each chunk is embedded using OpenAI's text-embedding-ada-002 model
    - Embeddings are stored in a FAISS vector database
 
 2. **Query Processing**:
    - User queries are embedded using the same OpenAI embedding model
-   - Relevant resume sections are retrieved using vector similarity search
+   - Relevant document sections are retrieved using vector similarity search
    - Retrieved context is used to generate accurate, grounded responses
 
 3. **Response Generation**:
    - Qwen-2-7B-Chat model receives both the user query and retrieved context
-   - Responses are generated based on actual resume content
+   - Responses are generated based on actual document content
    - The RAG approach ensures responses are factual and verifiable
 
 ## Requirements
@@ -178,7 +180,6 @@ Werkzeug==2.0.3
 openai>=1.0.0
 sqlalchemy==1.4.25
 python-dotenv==1.0.1
-PyPDF2==3.0.1
 pandas==2.2.0
 scikit-learn==1.5.0
 langchain-core>=0.1.17
@@ -190,6 +191,7 @@ faiss-cpu==1.7.4
 Flask-Limiter>=3.5.0
 requests>=2.32.3
 aiohttp==3.9.1
+beautifulsoup4==4.12.2
 ```
 
 ## Local Development Setup
@@ -206,8 +208,8 @@ Create a `.env` file in the root directory:
 OPENROUTER_API_KEY=your_api_key_here
 ```
 
-3. Add candidate resumes:
-Place PDF resumes in the `knowledge_sources` directory.
+3. Add candidate documents:
+Place candidate documents in the `knowledge_sources` directory.
 
 4. Run with Docker:
 ```bash
@@ -238,7 +240,7 @@ HiringHelp-Chatbot/
 ├── api/                    # Main application code
 │   ├── index.py           # Flask application and API endpoints
 │   └── __init__.py
-├── knowledge_sources/      # Directory for candidate resumes
+├── knowledge_sources/      # Directory for candidate documents
 ├── lib/                    # Helper libraries
 ├── public/                 # Static files
 ├── database/              # Database related files
