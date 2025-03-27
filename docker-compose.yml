@@ -7,7 +7,7 @@ services:
     volumes:
       - .:/app # Syncs current directory with /app in the container
     ports:
-      - "5000:5000" # Expose port 5000
+      - "5001:5000" # Map container port 5000 to host port 5001
     environment:
       FLASK_APP: backend/app.py
       FLASK_RUN_HOST: 0.0.0.0 # Ensures Flask binds to 0.0.0.0

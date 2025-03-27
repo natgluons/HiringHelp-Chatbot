@@ -1,11 +1,16 @@
-# HiringHelp Chatbot: AI-Powered Hiring Assistant
+# HiringHelp Chatbot: AI-Powered Hiring Assistant with RAG
 
 ## Overview
-HiringHelp Chatbot is an intelligent hiring assistant that helps match candidates with job positions using advanced language models and document retrieval techniques. The chatbot analyzes candidate resumes and provides insights based on your company's requirements.
+HiringHelp Chatbot is an intelligent hiring assistant that uses Retrieval-Augmented Generation (RAG) to match candidates with job positions. Built with LangChain and advanced language models, the chatbot analyzes candidate resumes by first retrieving relevant information from documents and then generating contextual responses. This RAG architecture ensures responses are grounded in actual candidate data rather than hallucinations.
+
+## Model Choices
+- **Chat Completion**: Using Qwen-2-7B-Chat (via OpenRouter) for its fast and accurate responses in RAG applications
+- **Embeddings**: Using OpenAI's text-embedding-ada-002 for optimal compatibility with LangChain and proven reliability in document retrieval tasks
 
 ## Features
+- **RAG-Based Analysis**: Uses Retrieval-Augmented Generation to provide accurate, document-grounded responses
 - **Resume Analysis**: Processes and analyzes candidate resumes in PDF format
-- **Intelligent Matching**: Uses advanced language models to match candidates with job requirements
+- **Intelligent Matching**: Uses LangChain and advanced language models to match candidates with job requirements
 - **Interactive Chat Interface**: User-friendly web interface for natural conversations
 - **Rate-Limited API**: Implements rate limiting (10 requests/minute, 100 requests/day) for stable service
 - **Document Management**: Stores and retrieves candidate information from the `knowledge_sources` directory
@@ -13,13 +18,31 @@ HiringHelp Chatbot is an intelligent hiring assistant that helps match candidate
 - **Secure Environment**: Handles sensitive information through environment variables
 
 ## Tech Stack
-- **Backend**: Flask (Python)
-- **Language Model**: OpenRouter API (supports multiple models)
+- **Framework**: LangChain for RAG implementation and document processing
+- **Language Models**:
+  - Qwen-2-7B-Chat: Primary model for chat completions (via OpenRouter)
+  - text-embedding-ada-002: OpenAI's embedding model for document vectorization
 - **Vector Database**: FAISS for efficient document retrieval
-- **Document Processing**: PyPDF2 for PDF parsing
+- **Document Processing**: PyPDF2 for PDF parsing, LangChain for text splitting and embedding
 - **Rate Limiting**: Flask-Limiter for API protection
 - **Data Storage**: SQLite for persistent storage
 - **Containerization**: Docker for deployment
+
+## How RAG Works in This Application
+1. **Document Ingestion**:
+   - Resumes are processed and split into chunks using LangChain's text splitters
+   - Each chunk is embedded using OpenAI's text-embedding-ada-002 model
+   - Embeddings are stored in a FAISS vector database
+
+2. **Query Processing**:
+   - User queries are embedded using the same OpenAI embedding model
+   - Relevant resume sections are retrieved using vector similarity search
+   - Retrieved context is used to generate accurate, grounded responses
+
+3. **Response Generation**:
+   - Qwen-2-7B-Chat model receives both the user query and retrieved context
+   - Responses are generated based on actual resume content
+   - The RAG approach ensures responses are factual and verifiable
 
 ## Requirements
 ```

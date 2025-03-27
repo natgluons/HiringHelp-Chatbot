@@ -272,8 +272,8 @@ def chat():
     print(f"Using model: {MODEL}")
     
     try:
-    data = request.json
-    prompt = data['prompt']
+        data = request.json
+        prompt = data['prompt']
         print(f"\nReceived prompt: {prompt}")
         
         # For listing candidates, extract names from PDF filenames
@@ -401,9 +401,9 @@ def chat():
                 unique_sources[source_title] = {
                     "title": source_title,
                     "page_number": doc['metadata']["page"]
-    }
+                }
 
-    return jsonify({
+        return jsonify({
             "response": result,
             "sources": list(unique_sources.values())
         })
