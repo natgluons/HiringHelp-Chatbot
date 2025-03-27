@@ -1,3 +1,9 @@
+---
+title: HiringHelp-Chatbot
+app_file: app.py
+sdk: gradio
+sdk_version: 5.22.0
+---
 # HiringHelp Chatbot: AI-Powered Hiring Assistant with RAG
 
 ## Overview

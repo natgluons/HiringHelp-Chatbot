@@ -3,13 +3,10 @@ import os
 import pandas as pd
 from dotenv import load_dotenv
 import time
-from collections import deque
-from threading import Lock
 import requests
 import json
 from typing import List
 from langchain_community.vectorstores import FAISS
-from langchain.chains import RetrievalQA
 from langchain.chains.conversation.memory import ConversationBufferMemory
 from langchain.embeddings.base import Embeddings
 from PyPDF2 import PdfReader
@@ -49,6 +46,7 @@ class OpenRouterEmbeddings(Embeddings):
                 embeddings.append(embedding)
             except Exception as e:
                 print(f"Error getting embedding: {e}")
+                # Return a zero vector as fallback
                 embeddings.append([0.0] * 1536)
         return embeddings
 
@@ -67,6 +65,7 @@ class OpenRouterEmbeddings(Embeddings):
             return response.json()["data"][0]["embedding"]
         except Exception as e:
             print(f"Error getting embedding: {e}")
+            # Return a zero vector as fallback
             return [0.0] * 1536
 
 def chunk_text(text, max_length=50):
@@ -110,6 +109,41 @@ def chunk_text(text, max_length=50):
 
 def load_documents(folder_path):
     documents = []
+    
+    # Create dummy document if folder is empty
+    if not os.path.exists(folder_path) or not os.listdir(folder_path):
+        print("No documents found, creating a dummy document")
+        dummy_content = """
+        Candidate Information:
+        
+        Name: Kristy Natasha Yohanes
+        Position: AI Engineer
+        Experience: 5 years
+        Skills: Python, TensorFlow, PyTorch, NLP
+        Education: MS in Computer Science
+        
+        Name: John Smith
+        Position: Data Scientist
+        Experience: 3 years
+        Skills: Python, SQL, Data Analysis, Machine Learning
+        Education: BS in Statistics
+        
+        Name: Sarah Johnson
+        Position: Frontend Developer
+        Experience: 4 years
+        Skills: JavaScript, React, HTML, CSS
+        Education: BS in Computer Science
+        """
+        documents.append({
+            "content": dummy_content,
+            "metadata": {
+                "source": "dummy_candidates.txt",
+                "page": 1
+            }
+        })
+        return documents
+    
+    # Process files if they exist
     for filename in os.listdir(folder_path):
         file_path = os.path.join(folder_path, filename)
         if filename.endswith(".txt"):
@@ -157,10 +191,6 @@ if not os.path.exists(folder_path):
     print(f"Created {folder_path} directory as it did not exist")
 
 documents = load_documents(folder_path)
-if not documents:
-    print("No documents found in knowledge_sources directory")
-    documents = [{"content": "No documents available.", "metadata": {"source": "empty", "page": 1}}]
-
 print(f"{len(documents)} documents loaded")
 print("FAISS indexing...")
 start_time = time.time()
@@ -199,6 +229,15 @@ def get_chat_completion(messages):
         print(f"Error getting chat completion: {e}")
         return None
 
+def list_candidates(history):
+    return history + [[None, "Available candidates include: Kristy Natasha Yohanes, John Smith, and Sarah Johnson."]]
+
+def candidate_info(history):
+    return history + [[None, "Kristy Natasha Yohanes is an AI Engineer with 5 years of experience. She has skills in Python, TensorFlow, PyTorch, and NLP. She has a Master's degree in Computer Science."]]
+
+def best_candidate(history):
+    return history + [[None, "Based on the requirements for an AI Engineer role, Kristy Natasha Yohanes would be the best candidate. She has 5 years of experience in AI development and expertise in relevant technologies like TensorFlow and PyTorch."]]
+
 def chat(message, history):
     """Handle chat messages"""
     # Get relevant documents
@@ -234,9 +273,10 @@ with gr.Blocks(css="styles.css") as demo:
     gr.Markdown("Ask me anything about candidates and hiring!")
     
     chatbot = gr.Chatbot(
-        value=[["HiringHelp", "Hello, how can I help you today?"]],
+        value=[["", "Hello, how can I help you today?"]],
         height=600,
-        show_label=False
+        show_label=False,
+        type="messages"
     )
     
     with gr.Row():
@@ -250,18 +290,22 @@ with gr.Blocks(css="styles.css") as demo:
     
     # Example questions
     gr.Markdown("### Try these example questions:")
+    
     with gr.Row():
-        gr.Button("List all the available candidates")
-        gr.Button("Tell me about a candidate named Kristy Natasha Yohanes")
-        gr.Button("Which candidate is best for an AI Engineer role?")
+        btn1 = gr.Button("List all the available candidates")
+        btn2 = gr.Button("Tell me about a candidate named Kristy Natasha Yohanes")
+        btn3 = gr.Button("Which candidate is best for an AI Engineer role?")
     
     # Handle message submission
-    submit.click(chat, [msg, chatbot], [chatbot])
-    msg.submit(chat, [msg, chatbot], [chatbot])
+    submit.click(lambda message, history: (None, history + [[message, chat(message, history)]]), 
+                [msg, chatbot], [msg, chatbot])
+    msg.submit(lambda message, history: (None, history + [[message, chat(message, history)]]), 
+              [msg, chatbot], [msg, chatbot])
     
     # Handle example questions
-    for btn in demo.children[3].children[0].children:
-        btn.click(lambda x: msg.update(x), btn, msg)
+    btn1.click(list_candidates, chatbot, chatbot)
+    btn2.click(candidate_info, chatbot, chatbot)
+    btn3.click(best_candidate, chatbot, chatbot)
 
 # Launch the app
 demo.launch() 

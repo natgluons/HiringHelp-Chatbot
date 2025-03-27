@@ -10,4 +10,3 @@ venv/
 *.db
 .DS_Store
 node_modules
-knowledge_sources
