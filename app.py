@@ -10,6 +10,7 @@ from langchain_community.vectorstores import FAISS
 from langchain.chains.conversation.memory import ConversationBufferMemory
 from langchain.embeddings.base import Embeddings
 from PyPDF2 import PdfReader
+from PyPDF2.errors import PdfReadError
 
 # Load environment variables from .env file
 load_dotenv()
@@ -110,30 +111,32 @@ def chunk_text(text, max_length=50):
 def load_documents(folder_path):
     documents = []
     
-    # Create dummy document if folder is empty
+    # Create dummy document as fallback
+    dummy_content = """
+    Candidate Information:
+    
+    Name: Kristy Natasha Yohanes
+    Position: AI Engineer
+    Experience: 5 years
+    Skills: Python, TensorFlow, PyTorch, NLP
+    Education: MS in Computer Science
+    
+    Name: John Smith
+    Position: Data Scientist
+    Experience: 3 years
+    Skills: Python, SQL, Data Analysis, Machine Learning
+    Education: BS in Statistics
+    
+    Name: Sarah Johnson
+    Position: Frontend Developer
+    Experience: 4 years
+    Skills: JavaScript, React, HTML, CSS
+    Education: BS in Computer Science
+    """
+    
+    # If directory doesn't exist or is empty, use dummy data
     if not os.path.exists(folder_path) or not os.listdir(folder_path):
-        print("No documents found, creating a dummy document")
-        dummy_content = """
-        Candidate Information:
-        
-        Name: Kristy Natasha Yohanes
-        Position: AI Engineer
-        Experience: 5 years
-        Skills: Python, TensorFlow, PyTorch, NLP
-        Education: MS in Computer Science
-        
-        Name: John Smith
-        Position: Data Scientist
-        Experience: 3 years
-        Skills: Python, SQL, Data Analysis, Machine Learning
-        Education: BS in Statistics
-        
-        Name: Sarah Johnson
-        Position: Frontend Developer
-        Experience: 4 years
-        Skills: JavaScript, React, HTML, CSS
-        Education: BS in Computer Science
-        """
+        print("No documents found, using dummy candidate data")
         documents.append({
             "content": dummy_content,
             "metadata": {
@@ -146,9 +149,39 @@ def load_documents(folder_path):
     # Process files if they exist
     for filename in os.listdir(folder_path):
         file_path = os.path.join(folder_path, filename)
-        if filename.endswith(".txt"):
-            with open(file_path, 'r', encoding='utf-8') as file:
-                text_chunks = chunk_text(file.read())
+        try:
+            if filename.endswith(".txt"):
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    text_chunks = chunk_text(file.read())
+                    for chunk in text_chunks:
+                        documents.append({
+                            "content": chunk,
+                            "metadata": {
+                                "source": filename,
+                                "page": 1
+                            }
+                        })
+            elif filename.endswith(".pdf"):
+                try:
+                    reader = PdfReader(file_path)
+                    for page_num, page in enumerate(reader.pages):
+                        text = page.extract_text()
+                        if text:
+                            text_chunks = chunk_text(text)
+                            for chunk in text_chunks:
+                                documents.append({
+                                    "content": chunk,
+                                    "metadata": {
+                                        "source": filename,
+                                        "page": page_num + 1
+                                    }
+                                })
+                except PdfReadError as e:
+                    print(f"Error reading PDF {filename}: {e}")
+                    continue
+            elif filename.endswith(".csv"):
+                df = pd.read_csv(file_path)
+                text_chunks = chunk_text(df.to_string())
                 for chunk in text_chunks:
                     documents.append({
                         "content": chunk,
@@ -157,31 +190,21 @@ def load_documents(folder_path):
                             "page": 1
                         }
                     })
-        elif filename.endswith(".pdf"):
-            reader = PdfReader(file_path)
-            for page_num, page in enumerate(reader.pages):
-                text = page.extract_text()
-                if text:
-                    text_chunks = chunk_text(text)
-                    for chunk in text_chunks:
-                        documents.append({
-                            "content": chunk,
-                            "metadata": {
-                                "source": filename,
-                                "page": page_num + 1
-                            }
-                        })
-        elif filename.endswith(".csv"):
-            df = pd.read_csv(file_path)
-            text_chunks = chunk_text(df.to_string())
-            for chunk in text_chunks:
-                documents.append({
-                    "content": chunk,
-                    "metadata": {
-                        "source": filename,
-                        "page": 1
-                    }
-                })
+        except Exception as e:
+            print(f"Error processing file {filename}: {e}")
+            continue
+    
+    # If no valid documents were found, use dummy data
+    if not documents:
+        print("No valid documents found, using dummy candidate data")
+        documents.append({
+            "content": dummy_content,
+            "metadata": {
+                "source": "dummy_candidates.txt",
+                "page": 1
+            }
+        })
+    
     return documents
 
 # Initialize the knowledge base
@@ -240,32 +263,36 @@ def best_candidate(history):
 
 def chat(message, history):
     """Handle chat messages"""
-    # Get relevant documents
-    docs = faiss_index.similarity_search(message, k=3)
-    
-    # Prepare context from documents
-    context = "\n".join([doc.page_content for doc in docs])
-    
-    # Prepare messages for the API
-    messages = [
-        {"role": "system", "content": "You are HiringHelp, an AI assistant that helps with hiring-related questions. Use the provided context to answer questions about candidates and hiring."},
-        {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {message}"}
-    ]
-    
-    # Get response from API
-    response = get_chat_completion(messages)
-    
-    if response and "choices" in response:
-        answer = response["choices"][0]["message"]["content"]
+    try:
+        # Get relevant documents
+        docs = faiss_index.similarity_search(message, k=3)
         
-        # Add sources if available
-        sources = [{"title": doc.metadata["source"], "page_number": doc.metadata["page"]} for doc in docs]
-        if sources:
-            answer += "\n\nSources:\n" + "\n".join([f"- {source['title']} (Page {source['page_number']})" for source in sources])
+        # Prepare context from documents
+        context = "\n".join([doc.page_content for doc in docs])
         
-        return answer
-    else:
-        return "I apologize, but I encountered an error while processing your request. Please try again."
+        # Prepare messages for the API
+        messages = [
+            {"role": "system", "content": "You are HiringHelp, an AI assistant that helps with hiring-related questions. Use the provided context to answer questions about candidates and hiring."},
+            {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {message}"}
+        ]
+        
+        # Get response from API
+        response = get_chat_completion(messages)
+        
+        if response and "choices" in response:
+            answer = response["choices"][0]["message"]["content"]
+            
+            # Add sources if available
+            sources = [{"title": doc.metadata["source"], "page_number": doc.metadata["page"]} for doc in docs]
+            if sources:
+                answer += "\n\nSources:\n" + "\n".join([f"- {source['title']} (Page {source['page_number']})" for source in sources])
+            
+            return answer
+        else:
+            return "I apologize, but I encountered an error while processing your request. Please try again."
+    except Exception as e:
+        print(f"Error in chat function: {e}")
+        return "I encountered an error. The default candidates are Kristy Natasha Yohanes (AI Engineer), John Smith (Data Scientist), and Sarah Johnson (Frontend Developer)."
 
 # Create Gradio interface
 with gr.Blocks(css="styles.css") as demo:

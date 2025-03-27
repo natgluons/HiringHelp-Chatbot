@@ -4,7 +4,89 @@ app_file: app.py
 sdk: gradio
 sdk_version: 5.22.0
 ---
-# HiringHelp Chatbot: AI-Powered Hiring Assistant with RAG
+
+# HiringHelp Chatbot
+
+[![Open in Spaces](https://huggingface.co/datasets/huggingface/badges/resolve/main/open-in-hf-spaces-sm.svg)](https://huggingface.co/spaces/natgluons/hiringhelp-chatbot)
+
+A Gradio-based chatbot that helps with hiring-related questions by analyzing candidate information and providing intelligent responses.
+
+## Features
+
+- Interactive chat interface built with Gradio
+- RAG (Retrieval-Augmented Generation) based responses
+- Support for PDF, TXT, and CSV document formats
+- Example questions for easy interaction
+- Source attribution for responses
+- Modern and responsive UI
+
+## Local Development
+
+1. Clone the repository:
+```bash
+git clone https://github.com/natgluons/hiringhelp-chatbot.git
+cd hiringhelp-chatbot
+```
+
+2. Create a virtual environment and activate it:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+4. Create a `.env` file with your OpenRouter API key:
+```
+OPENROUTER_API_KEY=your_api_key_here
+```
+
+5. Add your knowledge source documents (PDF, TXT, or CSV) to the `knowledge_sources` directory.
+
+6. Run the application:
+```bash
+python app.py
+```
+
+The application will be available at `http://localhost:7860`.
+
+## Deploying to Hugging Face Spaces
+
+1. Fork this repository to your GitHub account
+
+2. Create a new Space on Hugging Face:
+   - Go to [Hugging Face Spaces](https://huggingface.co/spaces)
+   - Click "New Space"
+   - Choose "Gradio" as the SDK
+   - Name your space (e.g., "hiringhelp-chatbot")
+
+3. Link your GitHub repository:
+   - Go to the Space's settings
+   - Navigate to the "Repository" section
+   - Select your GitHub repository
+
+4. Set up the OpenRouter API key:
+   - Go to your Space's settings
+   - Navigate to "Repository Secrets"
+   - Add your `OPENROUTER_API_KEY` as a secret
+
+The Space will automatically build and deploy your application.
+
+## Project Structure
+
+```
+HiringHelp-Chatbot/
+├── app.py              # Main Gradio application
+├── styles.css          # Custom CSS styles
+├── requirements.txt    # Python dependencies
+├── .env               # Environment variables (local only)
+└── knowledge_sources/ # Directory for knowledge base documents
+    ├── sample_candidates.txt  # Sample candidate data
+    └── README.md      # Instructions for adding documents
+```
 
 ## Overview
 HiringHelp Chatbot is an intelligent hiring assistant that uses Retrieval-Augmented Generation (RAG) to match candidates with job positions. Built with LangChain and advanced language models, the chatbot analyzes candidate resumes by first retrieving relevant information from documents and then generating contextual responses. This RAG architecture ensures responses are grounded in actual candidate data rather than hallucinations.
@@ -126,27 +208,6 @@ HiringHelp-Chatbot/
 ├── requirements.txt       # Python dependencies
 └── .env                   # Environment variables
 ```
-
-## Deploying to Hugging Face Spaces
-
-1. Create a new Space on Hugging Face:
-   - Go to [Hugging Face Spaces](https://huggingface.co/spaces)
-   - Click "New Space"
-   - Choose "Gradio" as the SDK
-   - Name your space (e.g., "HiringHelp-Chatbot")
-
-2. Push your code to the Space:
-```bash
-git remote add space https://huggingface.co/spaces/yourusername/HiringHelp-Chatbot
-git push space main
-```
-
-3. Set up environment variables:
-   - Go to your Space's settings
-   - Navigate to "Repository Secrets"
-   - Add your `OPENROUTER_API_KEY` as a secret
-
-4. The Space will automatically build and deploy your application.
 
 ## Usage Examples
 ```
