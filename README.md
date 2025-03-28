@@ -34,7 +34,7 @@ HiringHelp uses LangChain's RAG implementation to provide accurate, document-gro
 A demo version is available with sample candidate data for testing purposes.
 
 ### ❔ Ask about a specific candidate
-<img src="https://github.com/user-attachments/assets/25ca5927-b981-49b4-8c74-9859ad0fc5cf" width="800px">
+<img src="https://github.com/user-attachments/assets/7fa55a0b-8e70-4b6f-bdc0-8b07bbc0a9bc" width="800px">
 
 ### 🏆 Or ask who's best for the role
 <img src="https://github.com/user-attachments/assets/9bba78b9-a027-4d8c-b553-688a5850d680" width="800px">
