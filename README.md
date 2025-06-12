@@ -1,3 +1,8 @@
+title: HiringHelp-Chatbot
+app_file: app.py
+sdk: gradio
+sdk_version: 5.22.0
+
 # 👔 HiringHelp Chatbot
 
 ### A chatbot that helps you find the most fitting candidate for the role! Made using **RAG (Retrieval-Augmented Generation)** with **LangChain**.
